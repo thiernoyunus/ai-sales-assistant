@@ -57,6 +57,7 @@ const EXPECTED_KEYS = [
   'liveTranscriptBrain',
   'promptAssemblerV2',
   'answerDiversityGuard',
+  'answerRelevanceGuardLive',
   'meetingMemoryV2',
   'meetingSummaryV3',
   'meetingModeAutoDetect',

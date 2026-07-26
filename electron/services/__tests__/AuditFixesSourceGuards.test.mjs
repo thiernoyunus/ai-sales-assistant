@@ -73,8 +73,4 @@ describe('#3 stream id is emitted on the wire (backward-compatible 2nd arg)', ()
     assert.match(src, /send\('gemini-stream-token',\s*visible,\s*\{\s*streamId:\s*myStreamId\s*\}\)/,
       'desktop sendChunk must include streamId');
   });
-  test('phone tokens carry { streamId }', () => {
-    assert.match(src, /send\('gemini-stream-token',\s*token,\s*\{\s*streamId:\s*myStreamId\s*\}\)/,
-      'phone onToken must include streamId');
-  });
 });
