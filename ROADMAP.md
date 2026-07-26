@@ -2,145 +2,197 @@
 
 ## Vision
 
-Transform meeting transcription into an intelligent knowledge system with specialized AI capabilities and community-driven access.
+A real-time AI copilot for sales reps on live calls — and for the hour after the call ends.
+
+Natively listens to the call, retrieves from the rep's own reference material (product decks, pricing sheets, case studies, battlecards, prospect research), and surfaces the next thing to say while the call is still happening. Everything else the app currently does is being removed.
+
+> **Scope note.** The product is being narrowed from a multi-purpose meeting copilot to a sales-call-only tool. The full audit, removal plan, and open decisions live in [`SALES_SCOPE_PLAN.md`](./SALES_SCOPE_PLAN.md). This roadmap is the forward-looking half of that document.
+
+**How to read this file.** **Planned** = agreed direction, not started. **In progress** = actively being worked on. **Under review** = needs a product or architecture call before any work starts. Sizing is relative — **small** (days), **medium** (weeks), **large** (months). No dates, no version numbers, no delivery commitments. Nothing here is shipped.
+
+The product name stays **Natively** for now — the rename is a separate, later phase with its own migration risk (`SALES_SCOPE_PLAN.md` §3).
 
 ---
 
-## Planned Features
+## Near-term: scope reduction
 
-### 1. System Design Visualization Engine
+**Status: Planned** · Sequencing detail in `SALES_SCOPE_PLAN.md` §2 and §6.
 
-**Status:** Planned  
-**Priority:** High
+This is the prerequisite for most of what follows. It ships a focused product with the brand untouched and zero risk to existing installs.
 
-Create an AI-powered system design generation tool that produces visual diagrams from meeting discussions.
+| Phase | Content | Size |
+|---|---|---|
+| 0 | `README.md` liability cleanup (interview-cheating SEO block, competitor positioning, testimonials) + GitHub repo topics | small |
+| 1 | Clean deletions — subsystems with no sales-core importers | small |
+| 2 | Shimmed deletions — extract the credential bootstrap out of `ProcessingHelper` first, then stub and delete | small |
+| 3 | Mode collapse in `electron/services/ModesManager.ts` and its five hand-mirrored copies, **plus a DB migration** — `template_type` is a persisted row in `electron/db/DatabaseManager.ts` | medium |
+| 4 | `AnswerType` narrowing in `electron/llm/AnswerPlanner.ts` — **rewrite the sales leak guards before removing the interview vocabulary they are expressed in** | medium |
+| 5 | Docs, test cull, i18n regeneration | small |
 
-**Capabilities:**
+Two things must not be lost in the pruning:
 
-- Generate system architecture diagrams (microservices, monoliths, distributed systems)
-- Create flowcharts and state diagrams (DFA/NFA-style visualizations)
-- Produce sequence diagrams from conversation flow
-- Export in multiple formats (SVG, PNG, Mermaid)
-
-**Technical Approach:**
-
-- Specialized prompting system for structured diagram generation
-- Template-based rendering engine
-- Integration with visualization libraries (D3.js, Mermaid, or custom renderer)
-- RAG-enhanced context for maintaining design consistency across sessions
-
-**Use Cases:**
-
-- Automatically visualize system designs discussed in engineering meetings
-- Generate architecture diagrams from technical brainstorming sessions
-- Create flowcharts from process discussions
-- Document decision trees from strategic meetings
+- **The mode reference-file retrieval layer stays.** `electron/services/ModeContextRetriever.ts`, `electron/services/modes/ModeHybridRetriever.ts`, and `electron/rag/` are what make battlecards and pricing sheets work. Tier 1 (d) and (e) below depend on them.
+- **`electron/services/knowledge/` is a split, not a delete.** The card, graph, and evidence engine is reused in Tier 2 (f); only the résumé-shaped card templates go.
 
 ---
 
-### 2. Persona System
+## Tier 1 — Cheap wins on existing seams
 
-**Status:** Planned  
-**Priority:** Medium
+**Status: Planned.** These sit on wiring that already runs end to end. Each is small unless noted.
 
-Allow users to select AI personas that specialize in different professional contexts, changing how Natively analyzes and responds to meeting content.
+### a) LLM-backed qualification extraction (MEDDIC)
 
-**Predefined Personas:**
+**Planned · small**
 
-- **Software Engineer**: Technical focus, code-aware, architecture-oriented
-- **HR Professional**: People-focused, policy-aware, culture-sensitive
-- **Product Manager**: Feature-driven, user-centric, roadmap-oriented
-- **Sales Representative**: Deal-focused, relationship-aware, revenue-oriented
-- **Executive/Leadership**: Strategic, high-level, decision-focused
-- **Designer**: UX/UI aware, user journey focused, accessibility-minded
-- **Data Analyst**: Metrics-driven, insight-focused, trend-aware
+`salesMeddic()` in `electron/services/meeting/MeetingRecipes.ts` runs a regex over section *titles* and re-buckets whatever bullets landed there. Because the sales note sections are titled "Pain points" and "Budget / timeline / authority", *Metrics* and *Economic buyer* resolve to the same source and duplicate content. There is no per-letter scoring, no confidence, and no gap detection.
 
-**Features:**
+- Replace it with a `generateStructured()` call. The pattern is proven next door in `electron/services/meeting/FollowUpDraftGenerator.ts` and `electron/services/meeting/SectionPromptCompiler.ts`.
+- Add a `qualification` block to `MeetingSummaryV3` and its sanitizer (`electron/services/meeting/MeetingSummaryV3.ts`).
+- **Blocker to confirm first:** `recipes` is declared in the UI type in `src/components/MeetingDetails.tsx` but has no render path. The recipe output may be generated, stored, and never displayed. Verify before building on top of it.
 
-- Persona-specific question suggestions
-- Tailored summary formats
-- Domain-specific terminology and insights
-- Custom RAG retrieval strategies per persona
+### b) LLM call coaching and scoring
 
-**Implementation:**
+**Planned · small**
 
-- Persona-based system prompts
-- Specialized embedding strategies
-- Context-aware response formatting
-- Persona memory for consistent interactions
+`electron/services/post-call/PostCallWorkflow.ts` holds the only call-scoring code in the repo: two regex rules (`missed_objection`, `missing_next_step`). `CoachingInsight` carries no numeric score.
 
----
+- Swap the regex rules for an LLM rubric with per-dimension scores and evidence spans.
+- The seam is already wired: invoked from `electron/MeetingPersistence.ts`, rendered in `src/components/MeetingDetails.tsx`.
 
-### 3. Natively Token & Pro Access
+### c) Talk-ratio and talk-time analytics
 
-**Status:** Planned  
-**Priority:** Medium-High
+**Planned · small (post-call) / medium (live)**
 
-Implement a token-based rewards system that provides free premium access to community supporters.
+No talk-time, speaker-share, or monologue metrics exist today — but the raw data does. `electron/services/meeting/SpeakerLabelService.ts` and `electron/services/meeting/TranscriptNormalizer.ts` already carry per-segment speaker and timestamp.
 
-**Token Benefits:**
+- Post-call metrics module beside them: talk ratio, longest monologue, question count, patience after questions.
+- Live in-call ratio ("you've been talking for four minutes") needs a new streaming consumer in `electron/IntelligenceEngine.ts` — medium.
 
-- **1 Month Free Pro**: Upon acquiring Natively token
-- **Continuous Pro Access**: As long as token is held
-- **Early Feature Access**: Beta features for token holders
-- **Governance Rights**: Vote on feature priorities (future consideration)
+### d) Data-driven battlecards
 
-**Implementation Considerations:**
+**Planned · small**
 
-- Token verification system (blockchain integration)
-- Wallet connection flow
-- Token balance monitoring
-- Subscription state management
-- Fallback for non-token holders (standard Pro subscriptions)
+`electron/services/dynamic-actions/DynamicActionDetector.ts` hardcodes a competitor list as a regex and instructs the model to "position Natively's advantages" — our own dogfood config shipped as product behaviour.
 
-**Pro Features (with Token Access):**
+- Drive competitor triggers from the indexed battlecard instead of a constant. `tests/fixtures/modes/sales/sales_competitor_battlecard.md` shows the retrieval path already carries them.
+- Ingestion (`electron/services/ModeReferenceFileIngestion.ts`), retrieval (`ModeContextRetriever` + `electron/rag/`), and the `<injected_context>` reference-file type cues in `electron/llm/prompts.ts` all exist.
 
-- Unlimited meeting uploads
-- Advanced RAG search
-- System design visualization
-- All persona access
-- Priority processing
-- Extended history retention
-- Export capabilities
-- API access
+### e) Configurable pricing policy
+
+**Planned · small**
+
+The pricing *guardrails* — walk-away price, BATNA, discount-floor suppression — are the best-covered logic in the repo, enforced independently in `electron/llm/prompts.ts` and `electron/llm/tinyPrompts.ts`. What is missing is customer-configurable *policy*: approved discount ladders, concession trades, approval thresholds.
+
+- Ships as a structured reference file through the path `tests/fixtures/modes/sales/sales_pricing_policy.json` already exercises. No new subsystem.
 
 ---
 
-## Future Considerations
+## Tier 2 — Deal context
 
-### Short-term (Next 1-3 months)
+**Status: Planned.** Medium to large. These need new schema but reuse existing machinery.
 
-- [ ] System design visualization MVP
-- [ ] Basic persona system (3-5 personas)
-- [ ] Token integration research and proof-of-concept
+### f) Repoint the knowledge graph at accounts and deals
 
-### Medium-term (3-6 months)
+**Planned · large**
 
-- [ ] Full persona library
-- [ ] Advanced diagram types and customization
-- [ ] Token holder community features
-- [ ] Mobile app development
+`electron/services/knowledge/` is a working structured-knowledge stack — `OkfCardBuilder.ts`, `GraphExtractor.ts`, `GraphRetriever.ts`, `KnowledgePackStore.ts`, `EvidenceAssembler.ts` — currently aimed at résumés.
 
-### Long-term (6+ months)
+- Swap `ProfileCardTemplates.ts` for account / deal / competitor / stakeholder cards. Card schema, graph extraction, retrieval, and evidence assembly carry over.
+- This is the single highest-leverage reuse in the codebase, and the reason Tier 1's pruning treats `knowledge/` as a split.
 
-- [ ] Collaborative features
-- [ ] Plugin ecosystem
-- [ ] Multi-language support
+### g) Deal and opportunity objects
+
+**Planned · medium**
+
+No deal, account, or stage object exists anywhere in the app. The join keys do: `MeetingSummaryV3.people[]` carries `role` and `organization`, calendar attendees carry emails, and the mode metadata block is the natural home for a `dealId`.
+
+- Needs new tables in `electron/db/DatabaseManager.ts` and a linking pass at summary time.
+- Prerequisite for (k) pipeline review.
+
+### h) Mutual next-step commitment detection
+
+**Planned · medium**
+
+Half-built today: action-item regex patterns, a `missing_next_step` insight, and an `explicitness: 'explicit' | 'inferred'` flag. Missing: *who* committed to *whom*, a date-confirmed flag, and a calendar cross-check.
+
+- `electron/services/CalendarManager.ts` could verify a booked next step, but its OAuth scope is `calendar.readonly`. Booking the next meeting from the call requires a scope change and a re-consent flow — treat that as its own decision, not a silent expansion.
+
+---
+
+## Tier 3 — New subsystems
+
+**Status: Planned unless noted.** Large. None of these have existing code to build on.
+
+### i) CRM sync (Salesforce / HubSpot)
+
+**Planned · large**
+
+Genuinely absent — no CRM integration of any kind exists. `electron/services/CalendarManager.ts` is a working template for exactly this shape: OAuth loopback on localhost, tokens encrypted via `safeStorage`, secret exchange proxied through the API server. Write-back hangs off the post-call hook in `electron/MeetingPersistence.ts`.
+
+`FollowUpDraftType` in `MeetingSummaryV3.ts` already accepts `'crm_note'` and the sanitizer passes it, so a CRM-note draft type is schema-legal today.
+
+### j) Follow-up sequences
+
+**Planned · medium**
+
+`src/components/FollowUpEmailModal.tsx` is one-shot `mailto:` — no send, no scheduling, no cadence. Content generation is solid; the transport and scheduler do not exist.
+
+### k) Pipeline review
+
+**Planned · large**
+
+Depends entirely on (g) landing first. `electron/services/meeting/CrossMeetingRecall.ts` is the only cross-meeting primitive today.
+
+### l) Team rollups / manager view
+
+**Under review — architecture decision, not a feature.**
+
+Natively is single-user, local-first, and `userData`-scoped, and `PRIVACY.md` actively markets that as a position. A manager dashboard requires a server and a multi-tenant model.
+
+Flagging it because every incumbent in this category is fundamentally a manager tool. Choosing to stay rep-local is choosing a different market — that is a call to make deliberately, not to arrive at by default.
+
+---
+
+## Under review
+
+### Natively Token & Pro Access
+
+**Under review — see `SALES_SCOPE_PLAN.md` §4, decision 5.**
+
+The previous roadmap planned token-gated Pro access (wallet connection, on-chain balance monitoring, token-holder governance). The scope plan recommends cutting it from the sales product's positioning — enterprise sales buyers and token-gated access do not mix.
+
+This is a business decision, not a technical one, and it is not settled. It is recorded here rather than deleted so the call gets made explicitly. Nothing is being built against it in the meantime.
+
+### Sales methodology packs
+
+**Under review — see `SALES_SCOPE_PLAN.md` §4, decision 3.**
+
+`electron/services/skills/` is a markdown instruction-pack loader. It is on the removal list, but it is also the cheapest possible host for MEDDIC / Challenger / Sandler coaching packs without touching prompt code. Pending decision: keep the engine, drop the settings UI.
+
+---
+
+## Cut
+
+Removed from the roadmap as out of scope for a sales product:
+
+- **System Design Visualization Engine** — microservice architecture diagrams, DFA/NFA state machines, sequence diagrams, Mermaid/SVG export. Written for engineering meetings. Zero sales relevance.
+- **Persona System** — seven professional personas, of which only "Sales Representative" survives, and that one is superseded by the existing sales mode prompt and note schema rather than added to by a persona layer.
+- **Short / medium / long-term checklists** — persona library expansion, diagram customization, token-holder community features, mobile app, plugin ecosystem. Replaced by the tiers above.
+
+Multi-language support is *not* cut — it is an existing obligation. The app ships generated ru/zh/ja/es dictionaries, and any copy change during the rebrand silently drops them back to English until they are regenerated.
 
 ---
 
 ## Contributing
 
-We welcome community input on our roadmap. If you have feature suggestions or want to contribute to development, please:
+Feature suggestions are welcome, with the scope narrowing in mind — proposals outside the live-sales-call use case will likely be declined.
 
 1. Open an issue with the `feature-request` label
-2. Join our community discussions
-3. Submit PRs for approved features
+2. Join community discussions
+3. Submit PRs for approved items
 
 ---
 
 ## Notes
 
-This roadmap is subject to change based on user feedback, technical feasibility, and business priorities. Features are not guaranteed and timelines are estimates.
-
-**Last Updated:** March 2026
+This roadmap is subject to change based on user feedback, technical feasibility, and business priorities. Items are labeled by status; none are shipped, and sizing is relative rather than a schedule.
