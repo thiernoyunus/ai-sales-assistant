@@ -2,7 +2,7 @@
 
 **Goal:** rebrand this app from a multi-purpose meeting copilot (interviews, job hunting, lectures, coding help, sales) into a single-purpose **real-time AI copilot for sales calls**.
 
-**Status:** plan only. No code has been changed. Based on a full-repo audit (Jul 2026).
+**Status:** Phase 0 (docs/positioning) in progress. **No application code has been changed yet.** Based on a full-repo audit (Jul 2026).
 
 ---
 
@@ -45,9 +45,9 @@ The **live sales call path is genuinely the best-built part of the app.** It is 
 | `ProfileIntelligenceSettings.tsx` (UI) | 2,150 | **DELETE** |
 | Screenshot-solve path (`ScreenshotHelper`, `ProcessingHelper`, `CropperWindowHelper`, `Cropper.tsx`) | ~2,100 | **DELETE** (extract credential bootstrap first — see §3) |
 | Vision/OCR chain (`services/screen/*` minus 2 shims) | ~1,900 | **DELETE** |
-| Phone Mirror (`PhoneMirrorService` + `phoneMirrorClient` + settings tab) | ~3,540 | **DELETE** |
-| Skills system (`SkillsManager`, `services/skills/*`, `SkillsSettings.tsx`) | ~2,980 | **DELETE** *(or repurpose — see §5)* |
-| Codex CLI/OAuth provider (`CodexCliService`, `CodexOAuthService`) | ~1,790 | **DELETE** — duplicates OpenAI-key support |
+| Phone Mirror (`PhoneMirrorService` + `phoneMirrorClient` + settings tab) | ~3,540 | **DELETE** — cost & attack surface, not scope (see §2.1) |
+| Skills system — settings UI only (`SkillsSettings.tsx`) | ~705 | **DELETE** UI, **KEEP** the engine (see §2.1) |
+| Codex ChatGPT-OAuth provider (`CodexCliService`, `CodexOAuthService`) | ~1,790 | **KEEP** — subscription access, not a duplicate (see §2.1) |
 | Hindsight LTM sidecar (`HindsightManager`, `intelligence/memory/*`, banner UI) | ~1,730 | **DELETE** (needs Noop shim) |
 | Lecture + diagram intelligence | ~470 | **DELETE** |
 | Non-sales mode prompts (`MODE_LOOKING_FOR_WORK/RECRUITING/TEAM_MEET/LECTURE/TECHNICAL_INTERVIEW/SEMINAR`) | ~650 | **DELETE** |
@@ -64,7 +64,21 @@ The **live sales call path is genuinely the best-built part of the app.** It is 
 | Stealth/disguise (fake Terminal/Activity Monitor icons, process rename) | ~700 + 6 assets | **DECISION** — see §4 |
 | Audio pipeline, DB, RAG, meeting summaries, dynamic actions, post-call, calendar | ~25k | **KEEP — this is the product** |
 
-**Rough total removable: 28–35k LOC of production code + ~160–180 test files** (~25% of the app), before counting docs.
+**Rough total removable: 26–32k LOC of production code + ~160–180 test files** (~22% of the app), before counting docs.
+
+### 2.1 "Non-sales" vs "extra scope" — an important distinction
+
+Not everything on the removal list is an interview feature. Three categories, and they warrant different decisions:
+
+**(a) Genuinely interview/study-specific — delete, no debate.** Coding execution & verification, screenshot problem-solving, résumé/JD Profile Intelligence, lecture & diagram intelligence, the 6 non-sales mode prompts, and the coding/JD answer types. `LectureIntelligenceService`'s own header describes it as producing "flashcards, likely exam questions, a revision checklist" — there is no sales reading of that.
+
+**(b) Mode-agnostic features that are simply extra scope — judgment calls, not scope calls.**
+
+- **Phone Mirror** — a phone-as-second-screen (HTTP + WebSocket server, QR pairing, remote chat/actions/screenshots). Nothing interview-specific; a rep glancing at their phone mid-call is arguably a sales use case. **Cut it for maintenance cost and attack surface** — it can bind to `0.0.0.0` and expose the assistant over the LAN, with a whole token scheme and confirmation dialog built to prevent that happening by accident. Expensive, rarely enabled, security-relevant.
+- **Skills** — a generic `SKILL.md` instruction-pack loader. The only built-in skill is "humanize-ai-text." Zero interview coupling. **Keep the engine, drop the settings UI for now** — it is the cheapest future home for MEDDIC / Challenger / Sandler methodology packs without touching prompt code.
+- **Hindsight** — long-term memory backed by an optional user-provisioned Python + Postgres + HuggingFace sidecar. **Cut it.** The decisive detail is in its own header: the launch script is not bundled in packaged builds, so production deliberately stays a no-op unless a user manually stands up a server or buys the cloud tier. ~1.7k LOC and a settings panel for something almost no shipped user is running.
+
+**(c) Corrected call — Codex stays.** An earlier draft of this plan listed `CodexCliService`/`CodexOAuthService` as "duplicates OpenAI-key support." That was wrong. It is **ChatGPT OAuth**: it mints a bearer token from a user's ChatGPT *subscription* so they can use the app without buying API credits. Removing it forces those users onto per-token billing. That is a **pricing/packaging decision, not a scope decision** — and the default should be to keep it.
 
 ### Phasing
 
@@ -81,7 +95,9 @@ Phase 0 touches no code and can ship the same day.
 
 **Phase 1 — Clean deletions (no sales-core importers, safe to `rm`)**
 
-Phone Mirror · Skills · Codex provider · Donation · Review service · lecture/diagram intelligence · `services/dev/ThinkingBudgetBench` · vision/OCR registry · dead components · `tools/` job-seeker harnesses · `worker-script/`.
+Phone Mirror · Skills settings UI · Donation · Review service · lecture/diagram intelligence · `services/dev/ThinkingBudgetBench` · vision/OCR registry · dead components · `tools/` job-seeker harnesses · `worker-script/`.
+
+(Codex stays — see §2.1c. The Skills *engine* stays; only its settings tab goes.)
 
 Each removes its own IPC channels cleanly. ~110 of the app's 314 IPC channels (~35%) belong to features on the removal list.
 
@@ -165,9 +181,11 @@ These will silently break existing users if touched carelessly.
 
 ---
 
-## 4. Decisions I need from you
+## 4. Decisions
 
-I've made a recommendation on each; none is locked in.
+**Resolved (Jul 2026):** Phone Mirror → cut. Hindsight → cut. Skills → keep the engine, drop the settings UI. Codex ChatGPT-OAuth → **keep** (reversing an earlier call; see §2.1c). Rationale for all four in §2.1.
+
+**Still open** — recommendation given on each, none locked in.
 
 **1. Stealth / disguise.** The app can rename its own process and swap its icon to fake **Terminal, System Settings, or Activity Monitor** (6 assets in `assets/fakeicon/`, ~700 LOC in `main.ts`). That is interview-cheating machinery, and for a sales product where you're recording a call it's a legal liability, not a feature.
 → **Recommend: delete the impersonation icons and disguise modes. Keep "invisible to screen share"** — that one is legitimately useful (your notes don't show when you share your screen with a prospect) and is a different code path.
@@ -175,16 +193,13 @@ I've made a recommendation on each; none is locked in.
 **2. Chrome extension** (`natively-browser/`, 3.6k LOC + `services/browser-context/`, 961 LOC). Already published to the Chrome Web Store, so a rename means a store resubmission.
 → **Recommend: keep and rebrand.** Tab capture is *more* useful for sales than it ever was for interviews — pulling context off a prospect's LinkedIn, their pricing page, a company news article. This is a genuine asset.
 
-**3. Skills system** (~2,980 LOC). Markdown instruction packs loaded from disk.
-→ **Recommend: keep the engine, drop the settings UI for now.** It's the cheapest possible host for sales *methodology* packs — MEDDIC coach, Challenger framing, Sandler pain funnel — without touching prompt code. Killing it now means rebuilding it in six months.
-
-**4. Local models / offline mode** (Ollama, local Whisper, local reranker, ~1,500 LOC + 163MB of bundled ONNX). Not a sales question — a privacy-positioning question.
+**3. Local models / offline mode** (Ollama, local Whisper, local reranker, ~1,500 LOC + 163MB of bundled ONNX). Not a sales question — a privacy-positioning question.
 → **Recommend: keep.** Sales orgs care about not shipping call audio to third parties. Separately: `resources/models/Xenova/mobilebert-uncased-mnli/` ships **both** full (99MB) and quantized (27MB) weights — dropping the full one cuts ~99MB from the installer regardless.
 
-**5. Crypto token.** `README.md:362` gates Natively Pro behind a `$NAT` token on Printr; ROADMAP Feature 3 is the token system; `assets/pumpfun-card.png` is its marketing card.
+**4. Crypto token.** `README.md:362` gates Natively Pro behind a `$NAT` token on Printr; ROADMAP Feature 3 is the token system; `assets/pumpfun-card.png` is its marketing card.
 → **Recommend: cut it from the sales product's positioning.** Enterprise sales buyers and token-gated access do not mix. This is a business call, not a technical one.
 
-**6. Rename now or later?** The rebrand is the riskiest part (userData relocation, update feed, payment SKUs) and is *independent* of the pruning.
+**5. Rename now or later?** The rebrand is the riskiest part (userData relocation, update feed, payment SKUs) and is *independent* of the pruning.
 → **Recommend: prune first, rename second.** Phases 0–4 ship real value with zero risk to existing installs. Do the rename as its own release with a migration shim.
 
 ---
