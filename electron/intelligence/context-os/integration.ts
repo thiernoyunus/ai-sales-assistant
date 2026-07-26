@@ -80,7 +80,6 @@ export function mapPlannerVoice(voice: string | null | undefined): VoicePerspect
 
 const SURFACE_FLAG: Partial<Record<TurnSurface, 'contextOsManualChatEnabled' | 'contextOsWtaEnabled' | 'contextOsRecapFollowupEnabled'>> = {
   manual_chat: 'contextOsManualChatEnabled',
-  phone_mirror: 'contextOsManualChatEnabled', // phone mirror rides the manual path
   what_to_answer: 'contextOsWtaEnabled',
   suggestion: 'contextOsWtaEnabled',
   recap: 'contextOsRecapFollowupEnabled',

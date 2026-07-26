@@ -5,7 +5,7 @@
 // the user's exact permission set for explicit source requests.
 //
 // This module is the canonical AUTHORITY for "what sources does this
-// turn consume" — every answer surface (manual chat, WTA, phone mirror,
+// turn consume" — every answer surface (manual chat, WTA,
 // recap/follow-up) reads the resulting decision before any profile/JD/
 // reference retrieval runs.
 //

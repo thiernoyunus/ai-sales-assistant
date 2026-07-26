@@ -116,7 +116,6 @@ export type SourceAuthority =
 
 export type StreamRoute =
   | 'manual_chat_stream'
-  | 'phone_mirror'
   | 'wta_live'
   | 'wta_postcall'
   | 'suggestion'

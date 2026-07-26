@@ -11,7 +11,6 @@ export const STAGE_ORDER = [
   'profile_intelligence',
   'modes_manager',
   'trial_promo',
-  'support',
   'ads',
   'review_prompt',
 ];
@@ -86,22 +85,8 @@ export const STAGES = [
     reEligibility: (s) => !s.hasNativelyKey && !s.hasTrialToken && !s.isPremium,
   },
   {
-    id: 'support',
-    order: 6,
-    triggers: {
-      requiresHomepageMounted: true,
-      requiresHomepageDuration: 10_000,
-      requiresForeground: true,
-      requiresMeetingInactive: true,
-    },
-    requiresStages: ['quiet_window'],
-    skipWhen: (s) => !s.donationShouldShow || s.isPremium,
-    customPredicate: (ctx) => ctx.turnCount >= 10 || ctx.startupCount >= 10,
-    cooldownMs: () => 14 * 24 * 60 * 60 * 1000,
-  },
-  {
     id: 'ads',
-    order: 7,
+    order: 6,
     triggers: {
       requiresHomepageMounted: true,
       requiresHomepageDuration: 10_000,
@@ -109,13 +94,13 @@ export const STAGES = [
       requiresMeetingInactive: true,
       requiresStartupCount: 4,
     },
-    requiresStages: ['support'],
+    requiresStages: ['quiet_window'],
     skipWhen: (s) => s.isPremium,
     cooldownMs: () => 14 * 24 * 60 * 60 * 1000,
   },
   {
     id: 'review_prompt',
-    order: 8,
+    order: 7,
     triggers: {
       requiresHomepageMounted: true,
       requiresHomepageDuration: 10_000,

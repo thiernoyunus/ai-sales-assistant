@@ -657,34 +657,6 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
   // once (cleared) when the answer request reads it.
   const capturedEnvelopeRef = useRef<import('../types/electron').ContextEnvelope | null>(null);
 
-  // Multi-tab picker: when the user wants to choose which browser tab to capture
-  // (e.g. the auto-pick grabbed the wrong one), we ask the extension for its open
-  // tabs and show a compact list. null = closed; [] = loading/empty.
-  const [tabPicker, setTabPicker] = useState<Array<{ id: number; title: string; url: string }> | null>(null);
-  const [tabPickerLoading, setTabPickerLoading] = useState(false);
-
-  const openTabPicker = useCallback(async () => {
-    setTabPickerLoading(true);
-    setTabPicker([]);
-    try {
-      const res = await window.electronAPI?.phoneMirrorListTabs?.();
-      setTabPicker(res?.tabs ?? []);
-    } catch {
-      setTabPicker([]);
-    } finally {
-      setTabPickerLoading(false);
-    }
-  }, []);
-
-  const pickTab = useCallback(async (tabId: number) => {
-    setTabPicker(null);
-    try {
-      await window.electronAPI?.phoneMirrorCaptureTab?.(tabId);
-    } catch (_) {
-      /* the desktop logs the reason; the chip will appear on success */
-    }
-  }, []);
-
   /**
    * BROWSER DOM CONTEXT INTEGRATION
    * ═════════════════════════════════════════════════════════════════
@@ -707,8 +679,8 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
    *   - Sanitized:   HTML escape + prompt injection detection + optional redaction
    * 
    * LIFECYCLE:
-   *   1. Companion browser extension POSTs DOM to PhoneMirrorService (HTTP /dom)
-   *   2. PhoneMirrorService receives, validates pairing token, caps size, and broadcasts to renderer via IPC
+   *   1. Companion browser extension delivers the captured DOM to the desktop
+   *   2. The desktop validates and caps it, then broadcasts to the renderer via IPC
    *   3. Renderer receives IPC 'dom-context-received' event and sets window.lastCapturedDOM securely
    *   4. handleWhatToSay() reads the value
    *   5. Value is immediately cleared to prevent stale DOM leaking
@@ -2530,7 +2502,7 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
   const ragChunkBufRef = useRef<string>('');
   const ragChunkRafRef = useRef<number | null>(null);
   // Active chat stream id (audit finding #3). The main process emits chat tokens
-  // on one channel from both the desktop and phone-mirror paths; this lets us drop
+  // on one channel from several desktop answer paths; this lets us drop
   // tokens/done from a superseded stream. null = no id adopted yet (back-compat).
   const chatStreamIdRef = useRef<number | null>(null);
   // Active LIVE-ANSWER generation id (audit finding #3, full). The live what-to-
@@ -3466,30 +3438,9 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
     analytics.trackCommandExecuted('what_to_say');
 
     try {
-      // Smart Browser Context v2 — just-in-time auto-attach. If NO manual context
-      // is already captured, ask the extension for the best auto context (it only
-      // attaches a high-confidence coding page; sensitive/unknown pages are
-      // skipped). Manual context ALWAYS wins: we only run this when lastCapturedDOM
-      // is empty, and the request resolves quickly with attached:false when there
-      // is nothing to attach, so the answer is never blocked. The captured DOM (if
-      // any) arrives via onDomContextReceived → window.lastCapturedDOM, which we
-      // re-read below — reusing the proven domContext seam.
-      const hasManualContext =
-        typeof (window as any).lastCapturedDOM === 'string' &&
-        (window as any).lastCapturedDOM.trim().length > 0;
-      if (!hasManualContext) {
-        try {
-          await window.electronAPI.phoneMirrorRequestAutoContext?.();
-        } catch {
-          /* auto-context is best-effort — never block the answer */
-        }
-      }
-
-      // Safe to read synchronously right after the await above: the extension's
-      // SW awaits the /dom POST (which fires the `dom-context-received` IPC →
-      // sets window.lastCapturedDOM) BEFORE it emits the `done` ack that resolves
-      // phoneMirrorRequestAutoContext(). So by here, an auto-captured DOM has
-      // already landed — no extra settle delay needed.
+      // Browser page context, if the companion extension delivered one. It
+      // arrives via onDomContextReceived → window.lastCapturedDOM; we read it
+      // here and clear it immediately below so stale DOM is never re-sent.
       const rawDomContext = (window as any).lastCapturedDOM;
       const domContext =
         typeof rawDomContext === 'string' && rawDomContext.trim().length > 0
@@ -3786,7 +3737,7 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
 
     // Stream Token — rAF-coalesced via queueToken (same path as intelligence streams).
     // streamId guard (audit finding #3): drop tokens from a superseded chat stream so
-    // a phone-mirror or stale desktop stream can't bleed into the active bubble. Tokens
+    // a stale desktop stream can't bleed into the active bubble. Tokens
     // without a streamId (back-compat) are always accepted.
     cleanups.push(
       window.electronAPI.onGeminiStreamToken((token, meta) => {
@@ -3933,38 +3884,6 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
             },
           ];
         });
-      }),
-    );
-
-    // Phone-initiated chat: main process streams tokens via gemini-stream-*; this
-    // event adds the user turn + streaming placeholder before tokens arrive.
-    cleanups.push(
-      window.electronAPI.onPhoneMirrorIncomingChat(({ message }) => {
-        flushToken();
-        requestStartTimeRef.current = Date.now();
-        const userId = genMessageId();
-        const placeholderId = `${userId}-reply`;
-        streamingMsgIdRef.current = placeholderId;
-        streamingIntentRef.current = 'chat';
-        streamingTextRef.current = '';
-        streamingNodeRef.current = null;
-        setMessages((prev) => [
-          ...prev,
-          { id: userId, role: 'user', text: message },
-          {
-            id: placeholderId,
-            role: 'system',
-            text: '',
-            intent: 'chat',
-            isStreaming: true,
-          },
-        ]);
-        setIsExpanded(true);
-        setIsProcessing(true);
-        pinAnswerPanel();
-        setTimeout(() => {
-          messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 50);
       }),
     );
 
@@ -5815,15 +5734,6 @@ Provide only the answer, nothing else.`;
                     </span>
                     <button
                       type="button"
-                      aria-label={t("Pick a different browser tab")}
-                      title={t("Capture a different tab")}
-                      className="ml-0.5 rounded-full p-0.5 opacity-60 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity"
-                      onClick={() => { void openTabPicker(); }}
-                    >
-                      <List className="h-2.5 w-2.5" />
-                    </button>
-                    <button
-                      type="button"
                       aria-label={t("Dismiss captured page context")}
                       className="ml-0.5 rounded-full p-0.5 opacity-60 hover:opacity-100 hover:bg-black/10 dark:hover:bg-white/10 transition-opacity"
                       onClick={() => {
@@ -5840,46 +5750,6 @@ Provide only the answer, nothing else.`;
                   </div>
                 )}
               </div>
-              )}
-
-              {/* Multi-tab picker — choose which open browser tab to capture. */}
-              {tabPicker !== null && (
-                <div className="relative no-drag mx-4 mt-1 mb-1 rounded-[12px] border border-white/10 bg-black/30 backdrop-blur-xl p-2 shadow-sm">
-                  <div className="flex items-center justify-between px-1 pb-1.5">
-                    <span className="text-[11px] font-medium overlay-text-primary">
-                      {tabPickerLoading ? t('Finding open tabs…') : t('Pick a tab to capture')}
-                    </span>
-                    <button
-                      type="button"
-                      aria-label={t("Close tab picker")}
-                      className="rounded-full p-0.5 opacity-60 hover:opacity-100 hover:bg-white/10 transition-opacity"
-                      onClick={() => setTabPicker(null)}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
-                  </div>
-                  {!tabPickerLoading && tabPicker.length === 0 && (
-                    <div className="px-1 py-1 text-[10px] overlay-text-muted">
-                      {t('No capturable tabs — is the browser open and the extension connected?')}
-                    </div>
-                  )}
-                  <div className="flex flex-col gap-0.5 max-h-44 overflow-y-auto">
-                    {tabPicker.map((t) => (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => { void pickTab(t.id); }}
-                        className="text-left px-2 py-1.5 rounded-md text-[11px] overlay-text-primary hover:bg-white/10 transition-colors"
-                        title={t.url}
-                      >
-                        <span className="block truncate">{t.title || t.url}</span>
-                        <span className="block truncate text-[9px] overlay-text-muted">
-                          {hostnameFromUrl(t.url) || t.url}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
               )}
 
               {/* System Audio / Screen Recording Warning Banner */}

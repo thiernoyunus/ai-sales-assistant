@@ -22,28 +22,6 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const read = (rel) => fs.readFileSync(path.resolve(__dirname, rel), 'utf8');
 
-describe('#2 phone-mirror stream identity is independent of the desktop counter', () => {
-  const src = read('../../ipcHandlers.ts');
-
-  test('a dedicated phone supersession marker exists', () => {
-    assert.match(src, /_phoneChatLatestId\s*=\s*0/, 'phone path must have its own supersession counter');
-  });
-
-  test('phone supersession compares the phone marker, NOT the shared _chatStreamId', () => {
-    // The phone block must check _phoneChatLatestId for supersession.
-    assert.match(src, /_phoneChatLatestId\s*!==\s*myPhoneId/, 'phone shouldAbort must compare _phoneChatLatestId');
-    // And it must NOT gate phone supersession on the shared global id any more.
-    assert.doesNotMatch(src, /_chatStreamId\s*!==\s*myStreamId/,
-      'phone path must no longer supersede on the desktop-shared _chatStreamId');
-  });
-
-  test('the phone done/error gates use the phone marker', () => {
-    const phoneDoneGate = /_phoneChatLatestId\s*===\s*myPhoneId/g;
-    const matches = src.match(phoneDoneGate) || [];
-    assert.ok(matches.length >= 2, 'phone done + error finalization must gate on _phoneChatLatestId');
-  });
-});
-
 describe('#5 sleep/wake recreates STT providers, not just captures', () => {
   const src = read('../../main.ts');
   const start = src.indexOf('public async restartCapturesAfterResume');

@@ -60,7 +60,7 @@ export interface ContextItem {
  * (absent = legacy/unknown caller) so this is purely additive — no existing
  * write site is required to change.
  */
-export type ConversationSurface = 'manual_chat' | 'what_to_answer' | 'screenshot' | 'meeting_auto_answer' | 'phone_mirror';
+export type ConversationSurface = 'manual_chat' | 'what_to_answer' | 'screenshot' | 'meeting_auto_answer';
 
 export interface AssistantResponse {
     text: string;

@@ -81,10 +81,6 @@ The desktop application periodically checks for updates. Update checks reach **G
 
 This is the standard data sent by any GitHub-hosted update check and is governed by GitHub's privacy policy. No personal identifiers are sent.
 
-### 3.5 Phone Mirror (Beta)
-
-When you pair the desktop app with a phone via the Phone Mirror beta feature, a short-lived pairing token is generated and used to establish the connection. The session content (the mirrored screen and notifications) is **not** stored on our servers. You are responsible for the security of any device you pair and for the network on which the pairing happens.
-
 ---
 
 ## 4. Where your data goes when you use AI / STT / search features

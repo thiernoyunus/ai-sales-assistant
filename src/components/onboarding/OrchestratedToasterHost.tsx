@@ -18,7 +18,6 @@ import type { ToasterId } from '../../lib/onboarding/orchestrator.ts';
 import { PermissionsToaster } from './PermissionsToaster';
 import { BrowserExtensionToaster } from './BrowserExtensionToaster';
 import { TrialPromoToaster } from '../trial/TrialPromoToaster';
-import { SupportToaster } from '../SupportToaster';
 import ReviewPromptHost from '../ReviewPromptHost';
 
 // ─── Event channel ────────────────────────────────────────────────
@@ -152,21 +151,6 @@ export const OrchestratedToasterHost: React.FC = () => {
     case 'quiet_window':
       // Internal gate — never renders a visible component.
       return null;
-
-    case 'support':
-      return (
-        <SupportToaster
-          isOpen={true}
-          onDismiss={() => {
-            // Mark the donation toast as shown so DonationManager's
-            // lifetimeShows counter increments and the 21-day cooldown
-            // starts. Without this the support toaster re-fires on every
-            // cold launch past the cooldown threshold.
-            window.electronAPI?.markDonationToastShown?.().catch(() => {});
-            onDismiss('support')();
-          }}
-        />
-      );
 
     case 'ads':
       // The 5 ad toasters are driven by useAdCampaigns.ts which still runs in

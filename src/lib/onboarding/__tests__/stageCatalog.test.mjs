@@ -61,7 +61,6 @@ const DEFAULT_USER_STATE = {
   seenProfileOnboarding: false,
   seenModesOnboarding: false,
   activeModeSet: false,
-  donationShouldShow: false,
   isV2_8_OrNewer: true,
 };
 
@@ -233,68 +232,18 @@ test('trial_promo: skipped when isPremium', () => {
   assert.equal(show('trial_promo', ctx), false);
 });
 
-// ─── Support ──────────────────────────────────────────────────────
-
-test('support: skipped when !donationShouldShow', () => {
-  const ctx = makeCtx({
-    completed: { quiet_window: 1 },
-    turnCount: 15,
-    homepageMountedFor: 11_000,
-  });
-  assert.equal(show('support', ctx), false);
-});
-
-test('support: skipped when isPremium', () => {
-  const ctx = makeCtx({
-    userState: { ...DEFAULT_USER_STATE, isPremium: true, donationShouldShow: true },
-    completed: { quiet_window: 1 },
-    turnCount: 15,
-    homepageMountedFor: 11_000,
-  });
-  assert.equal(show('support', ctx), false);
-});
-
-test('support: requires quiet_window prerequisite', () => {
-  const ctx = makeCtx({
-    userState: { ...DEFAULT_USER_STATE, donationShouldShow: true },
-    turnCount: 15,
-    homepageMountedFor: 11_000,
-  });
-  assert.equal(show('support', ctx), false);
-});
-
-test('support: requires turnCount >= 10', () => {
-  const ctx = makeCtx({
-    userState: { ...DEFAULT_USER_STATE, donationShouldShow: true },
-    completed: { quiet_window: 1 },
-    turnCount: 5,
-    homepageMountedFor: 11_000,
-  });
-  assert.equal(show('support', ctx), false);
-});
-
-test('support: fires with quiet_window + 10 turns + 10s homepage', () => {
-  const ctx = makeCtx({
-    userState: { ...DEFAULT_USER_STATE, donationShouldShow: true },
-    completed: { quiet_window: 1 },
-    turnCount: 15,
-    homepageMountedFor: 11_000,
-  });
-  assert.equal(show('support', ctx), true);
-});
-
 // ─── Ads ──────────────────────────────────────────────────────────
 
 test('ads: requires startupCount >= 4', () => {
   const ctx = makeCtx({
-    completed: { support: 1 },
+    completed: { quiet_window: 1 },
     startupCount: 3,
     homepageMountedFor: 11_000,
   });
   assert.equal(show('ads', ctx), false);
 });
 
-test('ads: requires support prerequisite', () => {
+test('ads: requires quiet_window prerequisite', () => {
   const ctx = makeCtx({
     startupCount: 5,
     homepageMountedFor: 11_000,
@@ -305,7 +254,7 @@ test('ads: requires support prerequisite', () => {
 test('ads: skipped when isPremium', () => {
   const ctx = makeCtx({
     userState: { ...DEFAULT_USER_STATE, isPremium: true },
-    completed: { support: 1 },
+    completed: { quiet_window: 1 },
     startupCount: 5,
     homepageMountedFor: 11_000,
   });

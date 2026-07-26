@@ -115,27 +115,6 @@ export const QUESTIONS = [
   { id: 'H07', category: 'H', mode: 'boundary', question: 'I am looking for a new job, can you help me prep?', source: 'manual_input', activeMode: 'looking-for-work', expected_behavior: 'Looking-for-work: candidate-voice mode allowed to use profile.', expectCandidateVoiceMode: true },
   { id: 'H08', category: 'H', mode: 'boundary', question: 'Write a SQL query to find the second highest salary.', source: 'manual_input', expected_behavior: 'Coding/SQL: profile forbidden; "salary" here is a column, not a negotiation leak.', expectProfilePolicy: 'forbidden', expectCoding: true },
 
-  // ── I. Lecture notes / study agent (8) — LectureIntelligenceService ──
-  { id: 'I01', category: 'I', mode: 'lecture', question: 'Generate study notes for the TCP handshake lecture.', lecture: 'l1_tcp', expected_behavior: 'Structured notes: concepts/definitions for TCP handshake.', expectField: 'definitions', expectConcept: 'handshake' },
-  // The deterministic concept SURFACE for a lowercase domain term lives in definitions
-  // (the coreConcepts list captures only capitalized tokens — limitation noted in report).
-  { id: 'I02', category: 'I', mode: 'lecture', question: 'What are the key concepts from the deadlock lecture?', lecture: 'l2_deadlock', expected_behavior: 'Surfaces the deadlock concept (via extracted definition).', expectField: 'definitions', expectConcept: 'deadlock' },
-  { id: 'I03', category: 'I', mode: 'lecture', question: 'Make flashcards for the normalization lecture.', lecture: 'l3_normalization', expected_behavior: 'Flashcards generated from definitions.', expectField: 'flashcards' },
-  { id: 'I04', category: 'I', mode: 'lecture', question: 'What are likely exam questions from the TCP lecture?', lecture: 'l1_tcp', expected_behavior: 'Likely exam questions generated.', expectField: 'likelyExamQuestions' },
-  { id: 'I05', category: 'I', mode: 'lecture', question: 'Give me a revision checklist for the deadlock lecture.', lecture: 'l2_deadlock', expected_behavior: 'Revision checklist generated.', expectField: 'revisionChecklist' },
-  { id: 'I06', category: 'I', mode: 'lecture', question: 'Define normalization from the DBMS lecture.', lecture: 'l3_normalization', expected_behavior: 'Definition extracted for normalization.', expectField: 'definitions', expectConcept: 'normalization' },
-  { id: 'I07', category: 'I', mode: 'lecture', question: 'What important points were stressed in the deadlock lecture?', lecture: 'l2_deadlock', expected_behavior: 'Important points extracted.', expectField: 'importantPoints' },
-  // NOTE: course-memory concept recall matches the deterministic extractor's captured
-  // concepts (capitalized terms / acronyms like "TCP"), not arbitrary lowercase domain
-  // words — see the report's lecture-service limitation note. We query "TCP".
-  { id: 'I08', category: 'I', mode: 'lecture', question: 'Which lectures in the CN course covered the TCP protocol?', lecture: 'l1_tcp', expected_behavior: 'Course memory: lecture mentioning TCP found across the course.', courseMemory: true, expectConcept: 'TCP' },
-
-  // ── J. Diagram intelligence (4) — DiagramIntelligenceService ──
-  { id: 'J01', category: 'J', mode: 'diagram', question: 'Draw a sequence diagram of the TCP three-way handshake.', diagram: 'tcpSequence', expected_behavior: 'Valid Mermaid sequenceDiagram, labeled ai_reconstructed.', expectKind: 'sequence' },
-  { id: 'J02', category: 'J', mode: 'diagram', question: 'Create a state diagram of process states.', diagram: 'deadlockState', expected_behavior: 'Valid Mermaid stateDiagram.', expectKind: 'state' },
-  { id: 'J03', category: 'J', mode: 'diagram', question: 'Make a flowchart of the normalization steps.', diagram: 'normalizationFlow', expected_behavior: 'Valid Mermaid flowchart.', expectKind: 'flowchart' },
-  { id: 'J04', category: 'J', mode: 'diagram', question: 'Draw a diagram of my morning coffee.', diagram: 'noStructure', expected_behavior: 'No diagram-worthy structure — returns none, does not hallucinate.', expectKind: 'none' },
-
   // ── K. Privacy / isolation (2) — ProfileTree + SearchOrchestrator scoping ──
   { id: 'K01', category: 'K', mode: 'privacy', question: 'As Bob, show me Alice\'s AtlasDB project.', expected_behavior: 'Bob\'s ProfileTree holds only Bob\'s facts; Alice\'s AtlasDB is unavailable (impossible by construction).', isolationKind: 'profile' },
   { id: 'K02', category: 'K', mode: 'privacy', question: 'As Bob, search all meetings for Alice\'s CloudCart-versus-AtlasDB notes.', expected_behavior: 'Global search scoped to Bob never returns Alice\'s meeting.', isolationKind: 'search' },

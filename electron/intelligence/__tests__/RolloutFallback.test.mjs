@@ -50,8 +50,6 @@ const FLAG_ENV = {
   meetingMemoryV2: 'NATIVELY_MEETING_MEMORY_V2',
   globalSearchV2: 'NATIVELY_GLOBAL_SEARCH_V2',
   inMeetingSearchV2: 'NATIVELY_IN_MEETING_SEARCH_V2',
-  lectureIntelligenceV2: 'NATIVELY_LECTURE_INTELLIGENCE_V2',
-  diagramIntelligence: 'NATIVELY_DIAGRAM_INTELLIGENCE',
   hindsightMemory: 'NATIVELY_HINDSIGHT_MEMORY',
   hindsightLiveRecall: 'NATIVELY_HINDSIGHT_LIVE_RECALL',
   hindsightPostMeetingRetain: 'NATIVELY_HINDSIGHT_POST_MEETING_RETAIN',
@@ -150,8 +148,8 @@ describe('Rollout — instant rollback', () => {
   afterEach(clearAll);
 
   test('an explicit OFF overrides everything (instant kill)', () => {
-    process.env.NATIVELY_DIAGRAM_INTELLIGENCE = 'off';
+    process.env.NATIVELY_GLOBAL_SEARCH_V2 = 'off';
     __resetIntelligenceFlagsCache();
-    assert.equal(isIntelligenceFlagEnabled('diagramIntelligence'), false);
+    assert.equal(isIntelligenceFlagEnabled('globalSearchV2'), false);
   });
 });

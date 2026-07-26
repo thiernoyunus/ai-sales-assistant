@@ -1,8 +1,8 @@
 // electron/services/__tests__/ChatStreamGuard.test.mjs
 //
 // HIGH (audit finding #3) — renderer-side stale-token rejection. The main process
-// emits chat tokens on ONE `gemini-stream-token` channel from both the desktop and
-// phone-mirror chat paths; the renderer keys streams only on intent ('chat'), so a
+// emits chat tokens on ONE `gemini-stream-token` channel from multiple desktop
+// answer paths; the renderer keys streams only on intent ('chat'), so a
 // superseded stream could bleed tokens into the active bubble. The wire now carries
 // an optional numeric streamId and the renderer drops tokens/done from an older
 // stream. This tests the pure reducer that drives that decision.

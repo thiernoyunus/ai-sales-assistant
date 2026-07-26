@@ -141,42 +141,6 @@ test('electron.d.ts declares the skill upload types and bridge methods', () => {
   assert.match(types, /skillsPreview:\s*\(payload:\s*SkillUploadPayload\)\s*=>\s*Promise<UploadSkillOutcome>/);
 });
 
-test('SkillsSettings renderer guards upload bridge methods and exposes the upload UI', () => {
-  const view = read('src/components/settings/SkillsSettings.tsx');
-
-  // Guards — must match the existing skillsRefresh/skillsOpenFolder pattern.
-  // The renderer uses `skillsUpload` directly (autoInstall:false then
-  // autoInstall:true) rather than `skillsPreview` (which is just sugar for
-  // the validate-only call), so the upload method is the one we guard.
-  assert.match(view,
-    /typeof window\.electronAPI\?\.skillsUpload\s*!==\s*['"]function['"]/,
-    'SkillsSettings must guard against a missing skillsUpload bridge (silent-fail prevention)');
-
-  // The Skills IPC bridge not detected message is the canonical error
-  // (locked in by the original regression test for skillsRefresh).
-  assert.match(view, /Skills IPC bridge not detected/);
-
-  // Calls must be unconditional after the guard (no optional chain on the
-  // method itself) — this is the exact regression we protect against.
-  assert.match(view, /await window\.electronAPI\.skillsUpload\(/);
-
-  // UI affordances — drag-and-drop zone, .md file picker, preview card,
-  // compact "Installed skills" list section.
-  // Folder uploads were removed in favour of the Advanced "open skills
-  // folder" escape hatch; only single-file (.md) uploads are in the
-  // in-flow UI now.
-  assert.match(view, /onDrop=/, 'upload card must be a drop target');
-  assert.match(view, /<input[\s\S]{0,200}type="file"[\s\S]{0,200}accept="\.md/,
-    'must include a .md file picker');
-  assert.match(view, /Install/, 'preview card must have an Install button');
-  assert.match(view, /Cancel/, 'preview card must have a Cancel button');
-  assert.match(view, /Installed skills/,
-    'list section must be labeled "Installed skills"');
-  // Advanced section still exposes the manual folder option.
-  assert.match(view, /Advanced: open skills folder/,
-    'Advanced escape hatch must remain so users can add folders via OS file explorer');
-});
-
 test('preload exposes skillsRefresh / skillsOpenFolder on window.electronAPI', () => {
   const preload = read('electron/preload.ts');
 
@@ -198,21 +162,6 @@ test('electron.d.ts declares SkillSummary and the two skills methods', () => {
   assert.match(types, /export interface SkillSummary\s*\{[\s\S]{0,200}id:\s*string;[\s\S]{0,200}source:\s*['"]builtin['"]\s*\|\s*['"]userData['"]/);
   assert.match(types, /skillsRefresh:\s*\(\)\s*=>\s*Promise<SkillSummary\[\]>/);
   assert.match(types, /skillsOpenFolder:\s*\(\)\s*=>\s*Promise<\{\s*success:\s*boolean;\s*path:\s*string;\s*error\?:\s*string\s*\}>/);
-});
-
-test('SkillsSettings renderer guards against a missing bridge instead of silent optional-chain', () => {
-  const view = read('src/components/settings/SkillsSettings.tsx');
-
-  // The exact regression we are protecting against: a silent `?.skillsRefresh?.()`
-  // (and the symmetric `?.skillsOpenFolder?.()`) that resolves to undefined.
-  // The fix replaces both with explicit guards.
-  assert.match(view, /typeof window\.electronAPI\?\.skillsRefresh\s*!==\s*['"]function['"]/);
-  assert.match(view, /typeof window\.electronAPI\?\.skillsOpenFolder\s*!==\s*['"]function['"]/);
-  assert.match(view, /Skills IPC bridge not detected/);
-
-  // After each guard, the call is unconditional (no optional chain on the method).
-  assert.match(view, /await window\.electronAPI\.skillsRefresh\(\)/);
-  assert.match(view, /await window\.electronAPI\.skillsOpenFolder\(\)/);
 });
 
 // ---------------------------------------------------------------------------
@@ -369,8 +318,7 @@ function require_cache_set(req, id, mod) {
 // 4. Delete wiring — skills:delete (2026-07-05).
 //    Same three-tier static contract as the existing skills:* tests:
 //    handler registered in ipcHandlers.ts → preload exposes a thin invoke
-//    wrapper → electron.d.ts declares the type → SkillsSettings.tsx renders
-//    the UI affordance and guards the bridge. Plus a regex check that the
+//    wrapper → electron.d.ts declares the type. Plus a regex check that the
 //    /skill-name invocation gate in ipcHandlers.ts still exists defensively.
 //    (skills:set-enabled IPC was removed; SkillsManager.setSkillEnabled()
 //    remains as defense-in-depth for any future "disable" feature.)
@@ -418,7 +366,7 @@ test('electron.d.ts declares enabled on SkillSummary and the skillsDelete bridge
 
   // SkillSummary keeps its `enabled: boolean` field — set by loadUserSkills
   // from the sidecar (defensive, in case a future feature flips it). The
-  // field is no longer consumed by SkillsSettings.tsx after the toggle removal.
+  // field is no longer consumed by the renderer after the toggle removal.
   assert.match(types,
     /export interface SkillSummary\s*\{[\s\S]{0,300}enabled:\s*boolean[\s\S]{0,80}\}/,
     'SkillSummary must declare an enabled: boolean field (manager-side, defensive)');
@@ -430,77 +378,6 @@ test('electron.d.ts declares enabled on SkillSummary and the skillsDelete bridge
   // Negative assertion — skillsSetEnabled type was removed.
   assert.doesNotMatch(types, /skillsSetEnabled:/,
     'skillsSetEnabled type was intentionally removed; re-add only with the toggle UI');
-});
-
-test('SkillsSettings renderer guards the skillsDelete bridge and renders delete UI', () => {
-  const view = read('src/components/settings/SkillsSettings.tsx');
-
-  // Guard against missing bridge methods — same defensive pattern as
-  // skillsRefresh/skillsOpenFolder/skillsUpload.
-  assert.match(view,
-    /typeof window\.electronAPI\?\.skillsDelete\s*!==\s*['"]function['"]/,
-    'SkillsSettings must guard against a missing skillsDelete bridge');
-
-  // Negative assertion — skillsSetEnabled bridge was removed with the toggle.
-  assert.doesNotMatch(view,
-    /typeof window\.electronAPI\?\.skillsSetEnabled/,
-    'skillsSetEnabled bridge must not be referenced from the renderer (toggle UI removed)');
-
-  // Unconditional call after guard.
-  assert.match(view, /await window\.electronAPI\.skillsDelete\(/);
-
-  // Confirmation UX — inline two-step confirm replaces the prior blocking
-  // system dialog (which froze the renderer and broke the panel's visual
-  // language). The first click on the trash icon sets confirmingId, the
-  // second click on the inline red Delete button (rendered only when
-  // confirmingId === id) calls commitDeleteSkill. Both halves must be
-  // present so future contributors don't reintroduce the system dialog
-  // or break the affordance.
-  assert.doesNotMatch(view, /\bconfirm\s*\(/,
-    'SkillsSettings must NOT use the system blocking dialog — inline two-step UX replaces it');
-  assert.match(view, /confirmingId/,
-    'SkillsSettings must track which row is in confirm-mode');
-  // The inline Delete confirm button title (rendered when confirmingId
-  // matches) — the destructive commit button.
-  assert.match(view, /Delete this skill/,
-    'SkillsSettings must render an inline red Delete button while in confirm-mode');
-
-  // UI affordance — Trash2 icon button only.
-  assert.match(view, /Trash2/, 'must import Trash2 from lucide-react for the delete affordance');
-
-  // Negative assertion — no toggle UI remains.
-  assert.doesNotMatch(view, /role="switch"/,
-    'toggle UI was removed; skills are delete-only');
-  assert.doesNotMatch(view, /handleToggleEnabled/,
-    'handleToggleEnabled handler was removed');
-
-  // Hover-reveal animation matches the meeting-notes pattern in
-  // MeetingDetails.tsx:696 — subtle translate-y slide-up + 160ms ease-out,
-  // visible on hover (gated by hover-capable media query) AND focus-within
-  // (for keyboard users), plus the always-visible `@media(hover:none)`
-  // fallback for touch devices (no hover state to trigger on).
-  //
-  // Note: the strict ordering in the className is `[@media(hover:hover)]:group-hover:opacity-100`
-  // BEFORE `group-focus-within:opacity-100` — we use a lookahead-free match
-  // that allows arbitrary-value-wrapped Tailwind classes between them (the
-  // `[@media(hover:hover)]:group-hover:translate-y-0` in between contains a `g`
-  // character that doesn't break the regex).
-  assert.match(view,
-    /group-hover:opacity-100[\s\S]{0,80}group-focus-within:opacity-100/,
-    'delete button wrapper must reveal on both hover (group-hover) and keyboard focus (group-focus-within)');
-  assert.match(view,
-    /\[@media\(hover:none\)\]:opacity-100/,
-    'delete button must be always-visible on touch devices (no hover state) — meets the same a11y baseline as MeetingDetails');
-
-  // Built-ins must NOT show a delete affordance — the manager blocks builtin
-  // deletes, so the UI shouldn't even offer it. After the inline-confirm
-  // refactor the Trash2 icon is nested under the conditional ternary, so
-  // the lookahead grows from 1600→6000 chars (still well-bounded — a real
-  // regression would put an unconditional Trash2 in another branch entirely,
-  // and would obviously no longer follow the `!== 'builtin'` guard at all).
-  assert.match(view,
-    /skill\.source\s*!==\s*['"]builtin['"][\s\S]{0,6000}Trash2/,
-    'delete button must be conditionally rendered (only for non-builtin skills)');
 });
 
 test('disabled-skill invocation gate in ipcHandlers.ts remains as defense-in-depth', () => {

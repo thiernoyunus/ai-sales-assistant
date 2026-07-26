@@ -3,7 +3,7 @@ import type { SkillUploadPayload } from './services/skills/SkillValidator';
 
 /**
  * Metadata the companion extension sends with a captured page (drives the
- * optional "Page context" chip). Mirrors DomCaptureMeta in PhoneMirrorService.
+ * optional "Page context" chip).
  */
 interface DomCaptureMeta {
   title?: string;
@@ -423,8 +423,6 @@ interface ElectronAPI {
   getMeetingDetails: (id: string) => Promise<any>;
   searchGlobalMeetings: (query: string, filters?: any) => Promise<{ enabled: boolean; results: any[] }>;
   searchInMeeting: (query: string) => Promise<{ enabled: boolean; results: any[] }>;
-  generateLectureNotes: (opts?: { title?: string; course?: string }) => Promise<{ enabled: boolean; notes: any }>;
-  generateDiagram: (text?: string) => Promise<{ enabled: boolean; diagram: any }>;
   getIntelligenceFlags: () => Promise<Array<{ key: string; enabled: boolean; setting: string; env: string; default: boolean }>>;
   setIntelligenceFlag: (key: string, value: boolean | null) => Promise<{ success: boolean; enabled?: boolean; error?: string }>;
   getHindsightConfig: () => Promise<{ baseUrl: string; hasApiKey: boolean; autoStart: boolean; serverCommand: string; llmProvider: string; available: boolean; mode: 'local' | 'cloud'; synthetic: boolean; explicitlyDisabled: boolean; authFailed: boolean }>;
@@ -744,15 +742,6 @@ interface ElectronAPI {
   onStealthKeyCaptured: (
     cb: (ev: { keyCode: number; chars: string; flags: number; isKeyDown: boolean }) => void,
   ) => () => void;
-
-  // Donation API
-  getDonationStatus: () => Promise<{
-    shouldShow: boolean;
-    hasDonated: boolean;
-    lifetimeShows: number;
-  }>;
-  markDonationToastShown: () => Promise<{ success: boolean }>;
-  setDonationComplete: () => Promise<{ success: boolean }>;
 
   // Profile Engine API
   profileUploadResume: (filePath: string) => Promise<{ success: boolean; error?: string }>;
@@ -1246,38 +1235,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   skillsPreview: (payload: SkillUploadPayload) =>
     ipcRenderer.invoke('skills:upload', payload, { autoInstall: false }),
 
-  // Phone Mirror — stream live AI responses to a paired phone over the LAN.
-  phoneMirrorGetInfo: () => ipcRenderer.invoke('phone-mirror:get-info'),
-  phoneMirrorEnable: (exposeOnLan: boolean) =>
-    ipcRenderer.invoke('phone-mirror:enable', exposeOnLan),
-  phoneMirrorDisable: () => ipcRenderer.invoke('phone-mirror:disable'),
-  phoneMirrorSetLan: (exposeOnLan: boolean) =>
-    ipcRenderer.invoke('phone-mirror:set-lan', exposeOnLan),
-  phoneMirrorRotateToken: () => ipcRenderer.invoke('phone-mirror:rotate-token'),
-  phoneMirrorArmExtension: () => ipcRenderer.invoke('phone-mirror:arm-extension'),
-  phoneMirrorListTabs: () => ipcRenderer.invoke('phone-mirror:list-tabs'),
-  phoneMirrorCaptureTab: (tabId: number) => ipcRenderer.invoke('phone-mirror:capture-tab', tabId),
-  phoneMirrorRequestAutoContext: () => ipcRenderer.invoke('phone-mirror:request-auto-context'),
-  phoneMirrorPushScreenshot: (screenshotPath?: string) =>
-    ipcRenderer.invoke('phone-mirror:push-screenshot', screenshotPath),
   // Smart Browser Context v2 — auto-capture settings.
   browserContextGetSettings: () => ipcRenderer.invoke('browser-context:get-settings'),
   browserContextSetSettings: (patch: Record<string, boolean>) =>
     ipcRenderer.invoke('browser-context:set-settings', patch),
-  onPhoneMirrorStatus: (callback: (info: any) => void) => {
-    const subscription = (_: any, info: any) => callback(info);
-    ipcRenderer.on('phone-mirror:status', subscription);
-    return () => {
-      ipcRenderer.removeListener('phone-mirror:status', subscription);
-    };
-  },
-  onPhoneMirrorIncomingChat: (callback: (data: { message: string; streamId: string }) => void) => {
-    const subscription = (_: any, data: any) => callback(data);
-    ipcRenderer.on('phone-mirror:incoming-chat', subscription);
-    return () => {
-      ipcRenderer.removeListener('phone-mirror:incoming-chat', subscription);
-    };
-  },
 
   onSettingsVisibilityChange: (callback: (isVisible: boolean) => void) => {
     const subscription = (_: any, isVisible: boolean) => callback(isVisible);
@@ -1676,8 +1637,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getMeetingDetails: (id: string) => ipcRenderer.invoke('get-meeting-details', id),
   searchGlobalMeetings: (query: string, filters?: any) => ipcRenderer.invoke('search:global-meetings', { query, filters }),
   searchInMeeting: (query: string) => ipcRenderer.invoke('search:in-meeting', { query }),
-  generateLectureNotes: (opts?: { title?: string; course?: string }) => ipcRenderer.invoke('lecture:generate-notes', opts),
-  generateDiagram: (text?: string) => ipcRenderer.invoke('diagram:generate', { text }),
   getIntelligenceFlags: () => ipcRenderer.invoke('intelligence-flags:get'),
   setIntelligenceFlag: (key: string, value: boolean | null) => ipcRenderer.invoke('intelligence-flags:set', { key, value }),
   getHindsightConfig: () => ipcRenderer.invoke('hindsight-config:get'),
@@ -2282,11 +2241,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('stealth-key-captured', sub);
     };
   },
-
-  // Donation API
-  getDonationStatus: () => ipcRenderer.invoke('get-donation-status'),
-  markDonationToastShown: () => ipcRenderer.invoke('mark-donation-toast-shown'),
-  setDonationComplete: () => ipcRenderer.invoke('set-donation-complete'),
 
   // Profile Engine API
   profileUploadResume: (filePath: string) => ipcRenderer.invoke('profile:upload-resume', filePath),

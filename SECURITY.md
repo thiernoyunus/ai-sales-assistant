@@ -85,7 +85,6 @@ The following areas of the Service are **in scope** for security reports. High-v
 - ★ **IPC bridge** — communication between the Electron renderer and main processes; preload bridge; exposed API surface.
 - ★ **Audio &amp; screen capture** — privacy boundaries around what's captured, when, and where it's sent. Improper capture, unintended capture, or capture leaks are taken very seriously.
 - ★ **Auto-update mechanism** — integrity of updates, signature verification, downgrade protection.
-- ★ **Phone Mirror pairing** — pairing-token handling, replay or hijack of paired sessions.
 - **Authentication &amp; account boundaries** — anything that lets one user access another user's licence, quota, or data.
 - **Payment-flow handling** (the parts the desktop app participates in — Dodo Payments handles the actual card processing).
 - **Network communication** — TLS configuration, certificate handling, request integrity.

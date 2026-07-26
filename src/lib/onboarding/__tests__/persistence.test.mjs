@@ -74,7 +74,7 @@ test('saveState then loadState round-trips correctly', () => {
   // activeToasterId is null on a clean round-trip (a non-null value would
   // be cleared by crash recovery). Test the round-trip without it set.
   original.completed['permissions'] = 1_700_000_000_000;
-  original.skipped.add('support');
+  original.skipped.add('ads');
   original.queue = ['browser_extension', 'profile_intelligence'];
 
   saveState(original);
@@ -85,7 +85,7 @@ test('saveState then loadState round-trips correctly', () => {
   assert.equal(loaded.totalUsageMs, 600_000);
   assert.equal(loaded.activeToasterId, null);
   assert.equal(loaded.completed['permissions'], 1_700_000_000_000);
-  assert.ok(loaded.skipped.has('support'));
+  assert.ok(loaded.skipped.has('ads'));
   assert.deepEqual(loaded.queue, ['browser_extension', 'profile_intelligence']);
 });
 

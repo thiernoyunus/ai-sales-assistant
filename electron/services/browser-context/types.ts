@@ -7,7 +7,7 @@
  * (BrowserContextTypeParity.test.mjs) string-compares the union literals across
  * all three copies. Keep BROWSER_CONTEXT_PARITY below in sync if you edit a union.
  *
- * Data-only. The desktop classifier service + PhoneMirrorService consume these.
+ * Data-only. The desktop classifier service consumes these.
  */
 
 /* ────────────────────────────── unions ────────────────────────────── */

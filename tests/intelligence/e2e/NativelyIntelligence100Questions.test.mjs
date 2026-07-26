@@ -29,10 +29,6 @@
 //      `search:in-meeting`.
 //   H. mode boundaries (8)     → planAnswer routing/profileContextPolicy (compiled), the
 //      decision the manual + WTA paths consult.
-//   I. lecture notes (8)       → LectureIntelligenceService.generateNotes (compiled), same
-//      as `lecture:generate-notes`.
-//   J. diagrams (4)            → DiagramIntelligenceService.generate (compiled), same as
-//      `diagram:generate`.
 //   K. privacy isolation (2)   → ProfileTreeService per-user scoping + SearchOrchestrator
 //      scope filter (compiled).
 //
@@ -62,7 +58,6 @@ import {
   USER_A, USER_B, LIVE_TRANSCRIPT,
   MEETING_1, MEETING_2, MEETING_3,
   buildGlobalSearchCandidates, buildInMeetingChunks,
-  LECTURE_1, LECTURE_2, LECTURE_3, DIAGRAM_INPUTS,
 } from './fixtures/fixtures.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -78,8 +73,6 @@ const ENABLED_FLAGS = {
   NATIVELY_MEETING_MEMORY_V2: '1',
   NATIVELY_GLOBAL_SEARCH_V2: '1',
   NATIVELY_IN_MEETING_SEARCH_V2: '1',
-  NATIVELY_LECTURE_INTELLIGENCE_V2: '1',
-  NATIVELY_DIAGRAM_INTELLIGENCE: '1',
   NATIVELY_ANSWER_DIVERSITY_GUARD: '1',
   NATIVELY_HINDSIGHT_MEMORY: '1',
 };
@@ -106,8 +99,6 @@ function blankUsage() {
     meeting_memory_used: false,
     global_search_used: false,
     in_meeting_search_used: false,
-    lecture_intelligence_used: false,
-    diagram_intelligence_used: false,
     hindsight_used: false,
     context_router_used: false,
     prompt_assembler_v2_used: false,
@@ -140,7 +131,7 @@ function record(rec) {
 // ── Module handles populated in before() ─────────────────────────────────────
 let harness = null;
 let MeetingMemoryService, SearchOrchestrator, ConversationMemoryService;
-let LectureIntelligenceService, DiagramIntelligenceService, ProfileTreeService;
+let ProfileTreeService;
 let LongTermMemoryService, HindsightManager;
 let planAnswer, isCodingAnswerType;
 let hindsightServerUp = false;
@@ -151,8 +142,6 @@ before(async () => {
   ({ MeetingMemoryService } = reqDist('electron/intelligence/MeetingMemoryService.js'));
   ({ SearchOrchestrator } = reqDist('electron/intelligence/SearchOrchestrator.js'));
   ({ ConversationMemoryService } = reqDist('electron/intelligence/ConversationMemoryService.js'));
-  ({ LectureIntelligenceService } = reqDist('electron/intelligence/LectureIntelligenceService.js'));
-  ({ DiagramIntelligenceService } = reqDist('electron/intelligence/DiagramIntelligenceService.js'));
   ({ ProfileTreeService } = reqDist('electron/intelligence/ProfileTreeService.js'));
   try { ({ LongTermMemoryService } = reqDist('electron/intelligence/memory/LongTermMemoryService.js')); } catch (e) { loadErrors.push('LongTermMemoryService:' + e.message); }
   try { ({ HindsightManager } = reqDist('electron/services/HindsightManager.js')); } catch (e) { loadErrors.push('HindsightManager:' + e.message); }
@@ -675,79 +664,6 @@ test('[H] mode boundaries — planAnswer routing + profileContextPolicy', () => 
       total_time_ms: 0, provider_used: 'deterministic_router',
       usage: { context_router_used: true, deterministic_fast_path_used: true },
       evidence: { answerType: plan.answerType, profileContextPolicy: policy, isCoding: coding, outputPerspective: plan.outputPerspective, required: plan.requiredContextLayers, forbidden: plan.forbiddenContextLayers },
-    });
-  }
-});
-
-// ============================================================================
-//  CATEGORY I — lecture notes (LectureIntelligenceService.generateNotes)
-// ============================================================================
-test('[I] lecture notes — LectureIntelligenceService.generateNotes + course memory', () => {
-  const svc = new LectureIntelligenceService();
-  const byId = { l1_tcp: LECTURE_1, l2_deadlock: LECTURE_2, l3_normalization: LECTURE_3 };
-  const generated = {};
-  for (const q of QUESTIONS.filter((x) => x.category === 'I')) {
-    const lec = byId[q.lecture];
-    const key = `${lec.lectureId}|${lec.course}`;
-    const notes = generated[key] || (generated[key] = svc.generateNotes({ lectureId: lec.lectureId, segments: lec.segments, title: lec.title, course: lec.course }));
-    let pass = false; let reason = null; let actual = '';
-    if (q.courseMemory) {
-      const hits = svc.courseMemory.lecturesMentioning(lec.course, q.expectConcept);
-      pass = hits.length > 0;
-      actual = `course ${lec.course}: lectures mentioning "${q.expectConcept}" = ${hits.map((h) => h.lectureId).join(',')}`;
-      if (!pass) reason = `course memory found no lecture mentioning "${q.expectConcept}"`;
-    } else {
-      const field = notes[q.expectField];
-      if (q.expectField === 'definitions') {
-        pass = Array.isArray(field) && field.length > 0;
-        if (q.expectConcept) pass = pass && field.some((d) => `${d.term} ${d.definition}`.toLowerCase().includes(q.expectConcept));
-        actual = JSON.stringify(field).slice(0, 300);
-        if (!pass) reason = `no definition for "${q.expectConcept}" (got ${actual})`;
-      } else if (q.expectField === 'coreConcepts') {
-        pass = Array.isArray(field) && field.length > 0;
-        if (q.expectConcept) pass = pass && field.some((c) => String(c.term || c).toLowerCase().includes(q.expectConcept));
-        actual = JSON.stringify(field.map((c) => c.term || c)).slice(0, 300);
-        if (!pass) reason = `core concepts missing "${q.expectConcept}" (got ${actual})`;
-      } else {
-        pass = Array.isArray(field) && field.length > 0;
-        actual = JSON.stringify(field).slice(0, 300);
-        if (!pass) reason = `${q.expectField} empty`;
-      }
-    }
-    record({
-      id: q.id, category: 'I', mode: q.mode, question: q.question, expected_behavior: q.expected_behavior,
-      actual_answer: actual, pass, failure_reason: reason,
-      first_useful_token_ms: NOT_MEASURED('deterministic note generation — no provider'),
-      total_time_ms: 0, provider_used: 'deterministic_service',
-      usage: { lecture_intelligence_used: true },
-      evidence: { lectureId: lec.lectureId, course: lec.course, field: q.expectField, conceptCount: notes.coreConcepts.length, definitionCount: notes.definitions.length },
-    });
-  }
-});
-
-// ============================================================================
-//  CATEGORY J — diagrams (DiagramIntelligenceService.generate)
-// ============================================================================
-test('[J] diagrams — DiagramIntelligenceService.generate', () => {
-  const svc = new DiagramIntelligenceService();
-  for (const q of QUESTIONS.filter((x) => x.category === 'J')) {
-    const d = svc.generate({ text: DIAGRAM_INPUTS[q.diagram], fromSourceVisual: false });
-    let pass = false; let reason = null;
-    if (q.expectKind === 'none') {
-      pass = d.kind === 'none' || !d.valid || !d.mermaid;
-      if (!pass) reason = `expected NO diagram (no-structure guard), got kind=${d.kind} valid=${d.valid}`;
-    } else {
-      pass = d.kind === q.expectKind && d.valid && d.mermaid.length > 0 && d.confidenceLabel !== 'exact_source_diagram';
-      if (!pass) reason = `expected valid ${q.expectKind} (ai_reconstructed), got kind=${d.kind} valid=${d.valid} label=${d.confidenceLabel}`;
-    }
-    record({
-      id: q.id, category: 'J', mode: q.mode, question: q.question, expected_behavior: q.expected_behavior,
-      actual_answer: `kind=${d.kind} valid=${d.valid} label=${d.confidenceLabel} mermaid=${(d.mermaid || '').slice(0, 120).replace(/\n/g, ' / ')}`,
-      pass, failure_reason: reason,
-      first_useful_token_ms: NOT_MEASURED('deterministic diagram generation — no provider'),
-      total_time_ms: 0, provider_used: 'deterministic_service',
-      usage: { diagram_intelligence_used: true },
-      evidence: { kind: d.kind, valid: d.valid, confidenceLabel: d.confidenceLabel, hasMermaid: !!d.mermaid },
     });
   }
 });

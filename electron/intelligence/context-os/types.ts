@@ -138,7 +138,6 @@ export type TurnSurface =
   | 'manual_chat'
   | 'what_to_answer'
   | 'suggestion'
-  | 'phone_mirror'
   | 'recap'
   | 'follow_up'
   | 'meeting_summary';

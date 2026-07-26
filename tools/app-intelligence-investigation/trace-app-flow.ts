@@ -234,8 +234,6 @@ function flowTraceC(): void {
     'electron/intelligence/ConversationMemoryService.ts',
     'electron/intelligence/LiveTranscriptBrain.ts',
     'electron/intelligence/LiveMomentRouter.ts',
-    'electron/intelligence/LectureIntelligenceService.ts',
-    'electron/intelligence/DiagramIntelligenceService.ts',
     'electron/intelligence/intelligenceFlags.ts',
   ]) {
     const abs = path.join(rootDir(), f);

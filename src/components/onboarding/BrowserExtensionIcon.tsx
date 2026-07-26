@@ -1,7 +1,6 @@
 // src/components/onboarding/BrowserExtensionIcon.tsx
 //
-// Shared SVG icon used by both BrowserExtensionToaster (hero) and
-// PhoneMirrorSettings (browser-extension section). Replaces the generic
+// Shared SVG icon used by BrowserExtensionToaster (hero). Replaces the generic
 // lucide <Puzzle /> which read as "AI/missing piece" rather than
 // "browser extension install".
 //

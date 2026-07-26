@@ -178,42 +178,6 @@ test('REPRO (side door): a single-field auto-populate during an unreadable sessi
     'a flag-respecting auto-heal must not overwrite the still-recoverable store');
 });
 
-test('REPRO (side door 2): PhoneMirror ext-token mint during an unreadable session must not clobber the store', () => {
-  // Models PhoneMirrorService.loadOrCreatePersistedExtToken(): at startup it mints a fresh ext
-  // token and persists it via setPhoneMirrorToken() when none is found. During an unreadable
-  // launch getPhoneMirrorToken() is undefined (creds are the empty recovery set), so an
-  // unguarded mint would write a single-field { phoneMirrorToken } — non-empty, past
-  // saveCredentials()'s empty-set guard — clobbering the recoverable keyring file. The fixed
-  // call site mints in memory but only PERSISTS when !wasExistingStoreUnreadable().
-  //
-  // NOTE: this mirrors the call-site guard rather than importing the bundled function, because
-  // PhoneMirrorService is esbuild-bundled with its OWN inlined CredentialsManager singleton —
-  // driving the real function would require a test-only CM accessor in production code, a worse
-  // tradeoff than this contract test. The guard mechanism itself (wasExistingStoreUnreadable →
-  // skip persist → store survives) is exercised end-to-end here and verified honest: defeating
-  // the getter makes this and side-door-1 fail. The matching production call site is covered by
-  // PhoneMirrorExtensionV2.test.mjs's persist round-trip on the healthy path.
-  const env = makeEnv();
-
-  const cm = freshManager(env);
-  cm.setDeepgramApiKey(SECRET);
-
-  env.state.decryptShouldThrow = true;
-  const cm2 = freshManager(env);
-  assert.equal(cm2.getPhoneMirrorToken(), undefined, 'no persisted ext token readable this session');
-
-  // Emulate loadOrCreatePersistedExtToken()'s guarded mint-and-persist.
-  const fresh = 'ext-tok-FRESH-0123456789abcdef';
-  if (!cm2.wasExistingStoreUnreadable()) {
-    cm2.setPhoneMirrorToken(fresh);
-  }
-
-  env.state.decryptShouldThrow = false;
-  const cm3 = freshManager(env);
-  assert.equal(cm3.getDeepgramApiKey(), SECRET,
-    'a flag-respecting ext-token mint must not overwrite the still-recoverable store');
-});
-
 // ───────────────────────────────────────────────────────────────────────────
 // Recovery state machine (issue #322 production fix): transient vs permanent
 // classification, the re-enter banner signal, fallback fall-through, and re-key.

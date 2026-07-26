@@ -1,6 +1,6 @@
 // PHASE 18 — End-to-end intelligence eval. Wires the new facades together over a
 // synthetic 2-user / multi-mode dataset and asserts the spec's eval categories:
-// profile, routing, meeting memory, search, lecture, diagram, PRIVACY ISOLATION, latency.
+// profile, routing, meeting memory, search, PRIVACY ISOLATION, latency.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { ProfileTreeService } from '../../../../dist-electron/electron/intelligence/ProfileTreeService.js';
@@ -9,11 +9,9 @@ import { fuseContext, toPromptContextContract } from '../../../../dist-electron/
 import { assemblePromptV2 } from '../../../../dist-electron/electron/intelligence/PromptAssemblerV2.js';
 import { SearchOrchestrator } from '../../../../dist-electron/electron/intelligence/SearchOrchestrator.js';
 import { MeetingMemoryService } from '../../../../dist-electron/electron/intelligence/MeetingMemoryService.js';
-import { LectureIntelligenceService } from '../../../../dist-electron/electron/intelligence/LectureIntelligenceService.js';
-import { DiagramIntelligenceService } from '../../../../dist-electron/electron/intelligence/DiagramIntelligenceService.js';
 import { ConversationMemoryService } from '../../../../dist-electron/electron/intelligence/ConversationMemoryService.js';
 
-// ── Synthetic dataset: 2 users, profiles, JDs, meetings, lecture. ──
+// ── Synthetic dataset: 2 users, profiles, JDs, meetings. ──
 const ALICE = {
   profile: { identity: { name: 'Alice Chen' }, experience: [{ role: 'ML Engineer', company: 'Acme AI' }], projects: [{ name: 'RecoEngine', description: 'a recommender', technologies: ['Python', 'PyTorch'] }], skills: ['Python', 'PyTorch', 'Redis'], education: [{ degree: 'MS', field: 'CS', institution: 'Stanford' }] },
   jd: { title: 'ML Engineer', company: 'BigCo', requirements: ['Python', 'PyTorch'] },
@@ -24,8 +22,6 @@ const BOB = {
 
 const search = new SearchOrchestrator();
 const meetingMem = new MeetingMemoryService();
-const lecture = new LectureIntelligenceService();
-const diagrams = new DiagramIntelligenceService();
 
 describe('E2E — Profile category', () => {
   test('Alice: identity + intro + projects + role fit, no Natively leak', () => {
@@ -93,23 +89,6 @@ describe('E2E — Meeting memory + search category', () => {
     ], { userId: 'alice' }, {});
     assert.equal(res.length, 1);
     assert.equal(res[0].meetingId, 'alice-m1');
-  });
-});
-
-describe('E2E — Lecture + Diagram category', () => {
-  test('lecture notes + course memory from a TCP lecture', () => {
-    const notes = lecture.generateNotes({ lectureId: 'l1', course: 'CN101', title: 'TCP', segments: [
-      { text: 'TCP is a connection-oriented protocol.' },
-      { text: 'The client sends SYN, the server replies SYN-ACK, the client sends ACK.' },
-    ] });
-    assert.ok(notes.definitions.some(d => /TCP/i.test(d.term)));
-    assert.equal(lecture.courseMemory.lectureCount('CN101'), 1);
-  });
-
-  test('diagram from the same TCP content is valid + ai_reconstructed', () => {
-    const d = diagrams.generate({ text: 'The client sends SYN, the server replies SYN-ACK, the client sends ACK.' });
-    assert.equal(d.valid, true);
-    assert.equal(d.confidenceLabel, 'ai_reconstructed_diagram');
   });
 });
 

@@ -1742,47 +1742,7 @@ export const HelpSettings: React.FC<{ onNavigate?: (tab: string) => void }> = ({
                     </div>
                 </AccordionSection>
 
-                <AccordionSection title="10. Phone Mirror" icon={<Smartphone className="w-4 h-4" />}>
-                    <div className="space-y-4">
-                        <div className="p-3 bg-sky-500/10 border border-sky-500/20 rounded-xl mb-2">
-                            <h4 className="text-[13px] font-semibold text-sky-400 flex items-center gap-2 mb-1">
-                                <Smartphone size={14} /> Stream Natively to Your Phone
-                            </h4>
-                            <p className="text-[11px] text-text-secondary leading-relaxed mb-0">
-                                Phone Mirror spins up a small local web server so you can watch Natively's live transcript and AI answers from your phone or tablet — handy when your screen is being shared and you don't want the overlay visible.
-                            </p>
-                        </div>
-
-                        <div className="grid md:grid-cols-2 gap-3">
-                            <div className="p-4 rounded-xl border bg-bg-item-surface border-border-subtle">
-                                <h4 className="font-semibold text-sm mb-2 text-text-primary flex items-center gap-2">
-                                    <Wifi className="w-4 h-4 text-sky-500" /> Enable & Connect
-                                </h4>
-                                <ul className="text-[11px] text-text-secondary space-y-1 list-disc pl-4">
-                                    <li>Open <strong>Settings → Sync</strong></li>
-                                    <li>Toggle on, then scan the generated QR code from your phone</li>
-                                    <li>Loopback by default — flip <strong>Expose on LAN</strong> to reach it from another device on the same Wi-Fi</li>
-                                </ul>
-                            </div>
-                            <div className="p-4 rounded-xl border bg-bg-item-surface border-border-subtle">
-                                <h4 className="font-semibold text-sm mb-2 text-text-primary flex items-center gap-2">
-                                    <Lock className="w-4 h-4 text-amber-500" /> Token-Gated Security
-                                </h4>
-                                <p className="text-[11px] text-text-secondary">
-                                    Every session is protected by a single-use bearer token baked into the QR. If a device leaves your trust circle, hit <strong>Rotate Token</strong> to invalidate every existing connection in one tap.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div className="p-3 border border-orange-500/20 bg-orange-500/5 rounded-lg">
-                            <p className="text-[10px] text-orange-400 m-0">
-                                <strong>⚠️ LAN exposure:</strong> Only enable <em>Expose on LAN</em> on networks you trust. The token stops casual snoops, but anyone who captures the QR or copies the URL can read your live transcript until you rotate.
-                            </p>
-                        </div>
-                    </div>
-                </AccordionSection>
-
-                <AccordionSection title="11. Stealth & Window Control" icon={<Ghost className="w-4 h-4" />}>
+                <AccordionSection title="10. Stealth & Window Control" icon={<Ghost className="w-4 h-4" />}>
                     <div className="space-y-4">
                         <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl mb-4">
                             <h4 className="text-[13px] font-semibold text-indigo-400 flex items-center gap-2 mb-1">
@@ -1840,7 +1800,7 @@ export const HelpSettings: React.FC<{ onNavigate?: (tab: string) => void }> = ({
                     </div>
                 </AccordionSection>
 
-                <AccordionSection title="12. Hindsight Long-Term Memory (LTM) Setup" icon={<Brain className="w-4 h-4" />}>
+                <AccordionSection title="11. Hindsight Long-Term Memory (LTM) Setup" icon={<Brain className="w-4 h-4" />}>
                     <div className="space-y-4">
                         <div className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-xl mb-4">
                             <h4 className="text-[13px] font-semibold text-purple-400 flex items-center gap-2 mb-1">
@@ -1927,7 +1887,7 @@ hindsight-api`}
                     </div>
                 </AccordionSection>
 
-                <AccordionSection title="13. Sandboxed Code Verification & Corrector" icon={<Cpu className="w-4 h-4" />}>
+                <AccordionSection title="12. Sandboxed Code Verification & Corrector" icon={<Cpu className="w-4 h-4" />}>
                     <div className="space-y-4">
                         <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl mb-4">
                             <h4 className="text-[13px] font-semibold text-emerald-500 flex items-center gap-2 mb-1">
@@ -1971,7 +1931,7 @@ hindsight-api`}
                     </div>
                 </AccordionSection>
 
-                <AccordionSection title="14. Companion Browser Extension Setup" icon={<Smartphone className="w-4 h-4" />}>
+                <AccordionSection title="13. Companion Browser Extension Setup" icon={<Smartphone className="w-4 h-4" />}>
                     <div className="space-y-4">
                         <div className="p-3 bg-indigo-500/10 border border-indigo-500/20 rounded-xl mb-4">
                             <h4 className="text-[13px] font-semibold text-indigo-400 flex items-center gap-2 mb-1">
@@ -2024,7 +1984,6 @@ hindsight-api`}
                                     Establish a secure paired loopback connection (done only once):
                                 </p>
                                 <ol className="text-[11px] text-text-secondary space-y-1 list-decimal pl-4">
-                                    <li>In Natively desktop: go to <strong>Settings → Sync</strong>, ensure Phone Mirror is running, and under the **Browser Extension** card click <strong>Connect browser extension</strong> (arms pairing for 60s).</li>
                                     <li>In your browser: click the Natively extension toolbar icon, then click <strong>Connect to Natively</strong>.</li>
                                     <li>Once paired, the connection status shows a green dot ("Connected — capture ready").</li>
                                 </ol>
@@ -2047,7 +2006,7 @@ hindsight-api`}
                     </div>
                 </AccordionSection>
 
-                <AccordionSection title="15. Session Memory & Spoken Humanizer" icon={<Sparkles className="w-4 h-4" />}>
+                <AccordionSection title="14. Session Memory & Spoken Humanizer" icon={<Sparkles className="w-4 h-4" />}>
                     <div className="space-y-4">
                         <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl mb-4">
                             <h4 className="text-[13px] font-semibold text-amber-500 flex items-center gap-2 mb-1">

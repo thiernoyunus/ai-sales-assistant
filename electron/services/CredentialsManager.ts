@@ -85,18 +85,6 @@ export interface StoredCredentials {
     trialStartedAt?: string;   // ISO timestamp
     trialClaimed?: boolean;  // set true on first claim, never cleared — hides start card permanently
     /**
-     * Companion-extension pairing token. LOOPBACK-SCOPED — only the extension uses
-     * it, over 127.0.0.1, and it never travels the wire off-box. Persisted
-     * (encrypted via safeStorage) so the extension pairs ONCE and survives
-     * restarts; regenerated only on a deliberate "Rotate token". Kept SEPARATE from
-     * the phone token: the phone token is exposed in a plaintext-HTTP LAN QR when
-     * exposeOnLan is on, so sharing one secret would let a sniffed LAN token reach
-     * the extension's /dom capture capability. See PhoneMirrorService + CONTRACT.md.
-     *
-     * (Field name retained for backward-compat with already-persisted credentials.)
-     */
-    phoneMirrorToken?: string;
-    /**
      * ChatGPT Codex OAuth tokens. Persisted (encrypted via safeStorage) so the
      * user only signs in once per device. Written by CodexOAuthService on a
      * successful PKCE callback+exchange and on each refresh-token rotation;
@@ -230,11 +218,6 @@ export class CredentialsManager {
 
     public getDeepseekApiKey(): string | undefined {
         return this.credentials.deepseekApiKey;
-    }
-
-    /** Persisted loopback-scoped companion-extension token (stable across restarts). */
-    public getPhoneMirrorToken(): string | undefined {
-        return this.credentials.phoneMirrorToken;
     }
 
     /**
@@ -438,18 +421,6 @@ export class CredentialsManager {
         this.credentials.deepseekApiKey = trimmed || undefined;
         this.saveCredentials();
         console.log('[CredentialsManager] DeepSeek API Key updated');
-    }
-
-    /**
-     * Persist the loopback-scoped companion-extension token. Pass an empty string
-     * to clear it (next start mints a fresh one). Only the PhoneMirrorService
-     * writes this — on first start (mint) and on Rotate token. The phone token is
-     * NOT persisted (per-session, LAN-exposed) and is intentionally separate.
-     */
-    public setPhoneMirrorToken(token: string): void {
-        this.credentials.phoneMirrorToken = token || undefined;
-        this.saveCredentials();
-        console.log('[CredentialsManager] Extension pairing token updated');
     }
 
     /**

@@ -33,8 +33,8 @@ export type ExplicitSourceSwitch = 'reference_files' | 'profile' | 'job_descript
 // or mode name. Mirrors (and slightly extends) the shapes already proven in
 // electron/llm/sourceOwnership.ts's EXPLICIT_PROFILE_POSSESSIVE_RE /
 // EXPLICIT_JD_ARTICLE_RE, consolidated here as the single pre-contract
-// resolution point every surface (manual chat, WTA, phone-mirror,
-// recap/follow-up) should call before building a contract.
+// resolution point every surface (manual chat, WTA, recap/follow-up)
+// should call before building a contract.
 
 const PROFILE_RE =
   /\b(?:my|mine|our|your)\b[\s\w-]{0,40}\b(?:resume|résumé|cv|profile|projects?|portfolio|experience|background|skills?|education|career|work\s+history)\b|\b(?:from|on|in|per|according\s+to|based\s+on|using)\s+(?:my|mine|our)\b[\s\w-]{0,20}\b(?:resume|résumé|cv|profile|projects?|portfolio|experience|background|skills?|education|career)\b/i;

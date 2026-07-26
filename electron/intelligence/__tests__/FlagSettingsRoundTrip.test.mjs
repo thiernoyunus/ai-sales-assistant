@@ -68,8 +68,6 @@ const EXPECTED_KEYS = [
   'globalSearchV2',
   'inMeetingSearchV2',
   'conversationMemoryV2',
-  'lectureIntelligenceV2',
-  'diagramIntelligence',
   'hindsightMemory',
   'hindsightLiveRecall',
   'hindsightPostMeetingRetain',
@@ -161,8 +159,6 @@ const ALL_ENV_VARS = [
   'NATIVELY_GLOBAL_SEARCH_V2',
   'NATIVELY_IN_MEETING_SEARCH_V2',
   'NATIVELY_CONVERSATION_MEMORY_V2',
-  'NATIVELY_LECTURE_INTELLIGENCE_V2',
-  'NATIVELY_DIAGRAM_INTELLIGENCE',
   'NATIVELY_HINDSIGHT_MEMORY',
   'NATIVELY_HINDSIGHT_LIVE_RECALL',
   'NATIVELY_HINDSIGHT_POST_MEETING_RETAIN',
@@ -212,7 +208,6 @@ describe('Phase 14 — intelligence flag settings contract (key + meta surface)'
     assert.deepEqual([...keys].sort(), [...EXPECTED_KEYS].sort());
     // Spot-check the keys the task names explicitly.
     for (const k of ['trace', 'durableMemoryWindow', 'conversationMemoryV2',
-                     'lectureIntelligenceV2', 'diagramIntelligence',
                      'hindsightMemory', 'hindsightLiveRecall', 'hindsightPostMeetingRetain']) {
       assert.ok(keys.includes(k), `expected key present: ${k}`);
     }
@@ -236,10 +231,6 @@ describe('Phase 14 — intelligence flag settings contract (key + meta surface)'
       { setting: 'intelligenceDurableMemoryWindow', env: 'NATIVELY_DURABLE_MEMORY_WINDOW', default: false });
     assert.deepEqual(intelligenceFlagMeta('conversationMemoryV2'),
       { setting: 'conversationMemoryV2Enabled', env: 'NATIVELY_CONVERSATION_MEMORY_V2', default: false });
-    assert.deepEqual(intelligenceFlagMeta('lectureIntelligenceV2'),
-      { setting: 'lectureIntelligenceV2Enabled', env: 'NATIVELY_LECTURE_INTELLIGENCE_V2', default: false });
-    assert.deepEqual(intelligenceFlagMeta('diagramIntelligence'),
-      { setting: 'diagramIntelligenceEnabled', env: 'NATIVELY_DIAGRAM_INTELLIGENCE', default: false });
     assert.deepEqual(intelligenceFlagMeta('hindsightMemory'),
       { setting: 'hindsightMemoryEnabled', env: 'NATIVELY_HINDSIGHT_MEMORY', default: false });
   });
@@ -325,11 +316,11 @@ describe('Phase 14 — ENV override resolution chain (the mechanism the UI/IPC r
   });
 
   test('env override is PER-FLAG (toggling one does not affect another)', () => {
-    process.env.NATIVELY_LECTURE_INTELLIGENCE_V2 = '1';
+    process.env.NATIVELY_GLOBAL_SEARCH_V2 = '1';
     __resetIntelligenceFlagsCache();
-    assert.equal(isIntelligenceFlagEnabled('lectureIntelligenceV2'), true);
-    assert.equal(isIntelligenceFlagEnabled('diagramIntelligence'), false, 'sibling unaffected');
-    delete process.env.NATIVELY_LECTURE_INTELLIGENCE_V2;
+    assert.equal(isIntelligenceFlagEnabled('globalSearchV2'), true);
+    assert.equal(isIntelligenceFlagEnabled('inMeetingSearchV2'), false, 'sibling unaffected');
+    delete process.env.NATIVELY_GLOBAL_SEARCH_V2;
   });
 
   test('intelligenceFlagSnapshot() reflects the resolved state of the env override', () => {

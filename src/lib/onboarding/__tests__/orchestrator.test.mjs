@@ -22,7 +22,6 @@ const DEFAULT_USER_STATE = {
   seenProfileOnboarding: false,
   seenModesOnboarding: false,
   activeModeSet: false,
-  donationShouldShow: false,
   isV2_8_OrNewer: true,
 };
 

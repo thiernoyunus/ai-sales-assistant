@@ -10,11 +10,8 @@ import { AudioDevices } from './audio/AudioDevices';
 import { DatabaseManager } from './db/DatabaseManager'; // Import Database Manager
 import { AppState } from './main';
 import { CodexCliService } from './services/CodexCliService';
-import { PhoneMirrorService } from './services/PhoneMirrorService';
 import { sanitizeContextEnvelope } from './services/browser-context/sanitize';
 import { formatEnvelopeForPrompt } from './services/browser-context/formatEnvelopeForPrompt';
-import { BrowserMetadataClassifierService } from './services/browser-context/BrowserMetadataClassifierService';
-import type { BrowserContextCategory, SafeWebsiteMetadata } from './services/browser-context/types';
 import { SettingsManager } from './services/SettingsManager';
 import { ProviderStatusRegistry } from './services/ProviderStatusRegistry';
 import { SkillsManager } from './services/SkillsManager';
@@ -368,27 +365,6 @@ export function initializeIpcHandlers(appState: AppState): void {
     }
   });
 
-  // DEV-ONLY: thinking-budget sweep against the app's LIVE Gemini key (the .env
-  // key is billing-dead). Trigger from devtools:
-  //   await window.electronAPI.invoke?.('dev:thinking-budget-bench', { budgets:[0,128,512,1024,-1], repeats:1 })
-  // or via the exposed helper if present. Writes userData/thinking-budget-bench-results.json.
-  safeHandle('dev:thinking-budget-bench', async (_event, opts?: { budgets?: number[]; repeats?: number }) => {
-    try {
-      const llmHelper = appState.processingHelper?.getLLMHelper?.();
-      if (!llmHelper) return { ok: false, error: 'LLMHelper unavailable' };
-      const { runThinkingBudgetBench } = require('./services/dev/ThinkingBudgetBench');
-      const report = await runThinkingBudgetBench(llmHelper, {
-        budgets: opts?.budgets,
-        repeats: opts?.repeats,
-        log: (s: string) => console.log(s),
-      });
-      return { ok: true, summary: report.summary, path: require('electron').app.getPath('userData') + '/thinking-budget-bench-results.json' };
-    } catch (err: any) {
-      console.error('[IPC] dev:thinking-budget-bench failed:', err);
-      return { ok: false, error: String(err?.message || err) };
-    }
-  });
-
   safeHandle('license:activate', async (event, key: string) => {
     try {
       const { LicenseManager } = require('../premium/electron/services/LicenseManager');
@@ -680,29 +656,6 @@ export function initializeIpcHandlers(appState: AppState): void {
     }
   });
 
-  // Donation IPC Handlers
-  safeHandle('get-donation-status', async () => {
-    const { DonationManager } = require('./DonationManager');
-    const manager = DonationManager.getInstance();
-    return {
-      shouldShow: manager.shouldShowToaster(),
-      hasDonated: manager.getDonationState().hasDonated,
-      lifetimeShows: manager.getDonationState().lifetimeShows,
-    };
-  });
-
-  safeHandle('mark-donation-toast-shown', async () => {
-    const { DonationManager } = require('./DonationManager');
-    DonationManager.getInstance().markAsShown();
-    return { success: true };
-  });
-
-  safeHandle('set-donation-complete', async () => {
-    const { DonationManager } = require('./DonationManager');
-    DonationManager.getInstance().setHasDonated(true);
-    return { success: true };
-  });
-
   // Generate suggestion from transcript - Natively-style text-only reasoning
   safeHandle('generate-suggestion', async (event, context: string, lastQuestion: string) => {
     try {
@@ -800,16 +753,8 @@ export function initializeIpcHandlers(appState: AppState): void {
 
   // Streaming IPC Handler
   let _chatStreamId = 0;
-  // Keep IDs globally unique for phone/desktop message correlation; supersession is per sender.
+  // Supersession is tracked per sender.
   const _chatStreamsBySender = new Map<number, { streamId: number; controller: AbortController }>();
-  // Phone-mirror chat supersession is tracked SEPARATELY from the global id counter.
-  // `_chatStreamId` is shared with the desktop chat path purely to keep correlation ids
-  // globally unique, so checking it for phone supersession let a desktop message (which
-  // bumps the same counter) falsely abort an in-flight phone answer — and the phone user's
-  // answer would die mid-stream because the desktop user typed something on a different
-  // surface. Phone supersession compares against this dedicated latest-phone marker instead,
-  // so only a NEWER PHONE message supersedes a phone stream (desktop streams stay per-sender).
-  let _phoneChatLatestId = 0;
   // Per-process diversity guard for manual chat (manual regression 2026-06-12):
   // last-20 answer fingerprints; repeated answers across DIFFERENT questions are
   // compressed to speakable prose. Survives across questions within the app run
@@ -912,11 +857,6 @@ export function initializeIpcHandlers(appState: AppState): void {
               { text: message, speaker: 'user', timestamp: Date.now(), final: true },
               true,
             );
-            try {
-              PhoneMirrorService.getInstance().publishUserMessage(String(myStreamId), message);
-            } catch (_) {
-              /* noop */
-            }
             // Guard against a newer chat stream having taken over while we were computing
             // the canned reply — matches the protection the LLM path uses around its token
             // loop. Prevents cross-stream UI bleed.
@@ -928,16 +868,6 @@ export function initializeIpcHandlers(appState: AppState): void {
             }
             event.sender.send('gemini-stream-token', identityHit);
             event.sender.send('gemini-stream-done');
-            try {
-              PhoneMirrorService.getInstance().publishToken(String(myStreamId), identityHit);
-            } catch (_) {
-              /* noop */
-            }
-            try {
-              PhoneMirrorService.getInstance().publishDone(String(myStreamId), identityHit);
-            } catch (_) {
-              /* noop */
-            }
             intelligenceManager.addAssistantMessage(identityHit, undefined, 'manual_chat');
             intelligenceManager.logUsage('chat', message, identityHit);
             // Observe-only trace for the app-identity canned reply (common path). The
@@ -976,13 +906,6 @@ export function initializeIpcHandlers(appState: AppState): void {
           },
           true,
         );
-
-        // Mirror to phone (no-op if PhoneMirrorService isn't running).
-        try {
-          PhoneMirrorService.getInstance().publishUserMessage(String(myStreamId), message);
-        } catch (_) {
-          /* noop */
-        }
 
         let fullResponse = '';
 
@@ -1490,8 +1413,6 @@ export function initializeIpcHandlers(appState: AppState): void {
           if (_chatStreamsBySender.get(senderId)?.streamId !== myStreamId) return null;
           event.sender.send('gemini-stream-token', clarification);
           event.sender.send('gemini-stream-done', { finalText: clarification });
-          try { PhoneMirrorService.getInstance().publishToken(String(myStreamId), clarification); } catch (_) { /* noop */ }
-          try { PhoneMirrorService.getInstance().publishDone(String(myStreamId), clarification); } catch (_) { /* noop */ }
           intelligenceManager.addAssistantMessage(clarification, undefined, 'manual_chat');
           intelligenceManager.logUsage('chat', message, clarification);
           chatTrace.markFirstUseful({ via: 'context_free_clarification' });
@@ -1562,8 +1483,6 @@ export function initializeIpcHandlers(appState: AppState): void {
             if (_chatStreamsBySender.get(senderId)?.streamId !== myStreamId) return null;
             event.sender.send('gemini-stream-token', clarify);
             event.sender.send('gemini-stream-done', { finalText: clarify });
-            try { PhoneMirrorService.getInstance().publishToken(String(myStreamId), clarify); } catch (_) { /* noop */ }
-            try { PhoneMirrorService.getInstance().publishDone(String(myStreamId), clarify); } catch (_) { /* noop */ }
             const clarifyWrite = decideSessionWritePolicy({ finalGenerationMode: 'source_safe_refusal', validationOk: true, sourceContractHonored: true });
             intelligenceManager.addAssistantMessage(clarify, clarifyWrite, 'manual_chat');
             intelligenceManager.logUsage('chat', message, clarify);
@@ -1710,8 +1629,6 @@ export function initializeIpcHandlers(appState: AppState): void {
             if (_chatStreamsBySender.get(senderId)?.streamId !== myStreamId) return null;
             event.sender.send('gemini-stream-token', clarify);
             event.sender.send('gemini-stream-done', { finalText: clarify });
-            try { PhoneMirrorService.getInstance().publishToken(String(myStreamId), clarify); } catch (_) { /* noop */ }
-            try { PhoneMirrorService.getInstance().publishDone(String(myStreamId), clarify); } catch (_) { /* noop */ }
             const clarifyWrite = decideSessionWritePolicy({ finalGenerationMode: 'source_safe_refusal', validationOk: true, sourceContractHonored: true });
             intelligenceManager.addAssistantMessage(clarify, clarifyWrite, 'manual_chat');
             intelligenceManager.logUsage('chat', message, clarify);
@@ -2451,7 +2368,7 @@ export function initializeIpcHandlers(appState: AppState): void {
               forbiddenContextLayers: answerPlan.forbiddenContextLayers,
               // Surface-scoped (Phase 9, 2026-07-14): the referent hint must come
               // from THIS manual-chat conversation's own last answer, never a
-              // WTA/phone-mirror turn that happened to write the shared
+              // WTA turn that happened to write the shared
               // lastAssistantMessage more recently — that would resolve an
               // anaphoric query against an unrelated surface's subject.
               ...(manualActiveMode?.documentGroundedCustomModeActive === true
@@ -2522,11 +2439,6 @@ export function initializeIpcHandlers(appState: AppState): void {
             // compatible: existing (token)=>… callbacks ignore the extra arg.
             iTrace.lifecycle('streaming');
             event.sender.send('gemini-stream-token', visible, { streamId: myStreamId });
-            try {
-              PhoneMirrorService.getInstance().publishToken(String(myStreamId), visible);
-            } catch (_) {
-              /* noop */
-            }
           };
 
           // DEFERRED FIRST-PAINT (2026-07-02, doc-grounded flash fix). On the
@@ -2634,7 +2546,6 @@ export function initializeIpcHandlers(appState: AppState): void {
             const tail = chatSpecStripper ? (chatSpecStripper.push(gatedTail) + chatSpecStripper.finish()) : gatedTail;
             if (tail) {
               event.sender.send('gemini-stream-token', tail, { streamId: myStreamId });
-              try { PhoneMirrorService.getInstance().publishToken(String(myStreamId), tail); } catch (_) { /* noop */ }
             }
           }
 
@@ -3295,7 +3206,7 @@ export function initializeIpcHandlers(appState: AppState): void {
               const GREETING_RE = /^\s*(?:hey|hi|hello)[!,.]?\s*(?:there)?[!,.]?\s*(?:what would you like help with|how can i help|what can i (?:help|do)(?: you with| for you)?|how may i (?:help|assist))\b/i;
               const trimmed = fullResponse.trim();
               // Surface-scoped (Phase 9, 2026-07-14): comparing THIS manual-chat
-              // turn's greeting/duplicate-detection against a WTA/phone-mirror
+              // turn's greeting/duplicate-detection against a WTA
               // answer would be an apples-to-oranges comparison across surfaces.
               const priorAnswer = (intelligenceManager.getLastAssistantMessage('manual_chat') || '').trim();
               const isGreeting = GREETING_RE.test(trimmed) || /what would you like help with/i.test(trimmed);
@@ -4062,11 +3973,6 @@ export function initializeIpcHandlers(appState: AppState): void {
                 validationResult: finalText ? 'repaired' : 'accepted',
               });
             commitTrace(iTrace);
-            try {
-              PhoneMirrorService.getInstance().publishDone(String(myStreamId), fullResponse);
-            } catch (_) {
-              /* noop */
-            }
 
             // Update IntelligenceManager with ASSISTANT message after completion.
             // Document-grounded invalid answers (greeting/empty/exact-repeat that
@@ -4291,7 +4197,6 @@ export function initializeIpcHandlers(appState: AppState): void {
               });
               event.sender.send('gemini-stream-token', safe);
               event.sender.send('gemini-stream-done', { finalText: safe });
-              try { PhoneMirrorService.getInstance().publishToken(String(myStreamId), safe); PhoneMirrorService.getInstance().publishDone(String(myStreamId), safe); } catch (_) { /* noop */ }
               intelligenceManager.addAssistantMessage(safe, sessionWriteDecision, 'manual_chat');
               _emitAttr({ answer_type: answerPlan.answerType, profile_tree_used: false, profile_tree_fast_path_used: false, structured_resume_used: false });
               return null;
@@ -4302,14 +4207,6 @@ export function initializeIpcHandlers(appState: AppState): void {
               'gemini-stream-error',
               streamError.message || 'Unknown streaming error',
             );
-            try {
-              PhoneMirrorService.getInstance().publishError(
-                String(myStreamId),
-                streamError?.message || 'Unknown streaming error',
-              );
-            } catch (_) {
-              /* noop */
-            }
           }
         }
 
@@ -7745,58 +7642,6 @@ export function initializeIpcHandlers(appState: AppState): void {
     }
   });
 
-  // LECTURE NOTES (Phase 12 wiring, behind lecture_intelligence_v2_enabled). Generates
-  // structured student notes (concepts/definitions/examples/important-points/flashcards/
-  // exam-questions/revision-checklist) from the CURRENT meeting transcript. Deterministic,
-  // no LLM, local. Returns {enabled:false} when off. The renderer can call this on demand
-  // (a lecture-notes panel is a separate UI feature).
-  safeHandle('lecture:generate-notes', async (_event, opts?: { title?: string; course?: string }) => {
-    try {
-      if (!isIntelligenceFlagEnabled('lectureIntelligenceV2')) return { enabled: false, notes: null };
-      const { LectureIntelligenceService } = require('./intelligence/LectureIntelligenceService') as typeof import('./intelligence/LectureIntelligenceService');
-      const transcript = appState.getIntelligenceManager().getCurrentMeetingTranscript();
-      const segments = transcript.map((t) => ({ speaker: t.speaker, text: t.text, timestamp: t.timestamp }));
-      const notes = new LectureIntelligenceService().generateNotes({
-        lectureId: `live-${Date.now()}`,
-        segments,
-        title: opts?.title,
-        course: opts?.course,
-      });
-      return { enabled: true, notes };
-    } catch (e: any) {
-      console.warn('[LectureIntelligenceV2] notes generation failed (non-fatal):', e?.message);
-      return { enabled: true, notes: null };
-    }
-  });
-
-  // DIAGRAM GENERATION (Phase 12 wiring, behind diagram_intelligence). Generates a
-  // validated Mermaid diagram from explanatory text (the query, or the recent transcript).
-  // SAFETY: text-derived diagrams are labeled `ai_reconstructed_diagram` (never "exact"),
-  // syntax-validated, with an ASCII fallback — the service never fabricates edges when it
-  // can't extract structure. Returns {enabled:false} when off.
-  safeHandle('diagram:generate', async (_event, { text }: { text?: string }) => {
-    try {
-      if (!isIntelligenceFlagEnabled('diagramIntelligence')) return { enabled: false, diagram: null };
-      if (text !== undefined && typeof text !== 'string') return { enabled: true, diagram: null };
-      const { DiagramIntelligenceService } = require('./intelligence/DiagramIntelligenceService') as typeof import('./intelligence/DiagramIntelligenceService');
-      // Use the supplied text, else fall back to the recent transcript window. CAP the
-      // input length: the sequence generator's SEND_RE has nested lazy quantifiers that
-      // backtrack ~quadratically, so a multi-MB single sentence would stall the main
-      // event loop (security review 2026-06-13 MEDIUM). 8000 chars is ample for any real
-      // diagram-worthy explanation.
-      let source = (text || '').trim().slice(0, 8000);
-      if (!source) {
-        const transcript = appState.getIntelligenceManager().getCurrentMeetingTranscript();
-        source = transcript.slice(-30).map((t) => t.text).join('. ').slice(0, 8000);
-      }
-      const diagram = new DiagramIntelligenceService().generate({ text: source, fromSourceVisual: false });
-      return { enabled: true, diagram };
-    } catch (e: any) {
-      console.warn('[DiagramIntelligence] generation failed (non-fatal):', e?.message);
-      return { enabled: true, diagram: null };
-    }
-  });
-
   safeHandle('update-meeting-title', async (_, { id, title }: { id: string; title: string }) => {
     return DatabaseManager.getInstance().updateMeetingTitle(id, title);
   });
@@ -7973,13 +7818,6 @@ export function initializeIpcHandlers(appState: AppState): void {
       const intelligenceManager = appState.getIntelligenceManager();
       const insight = await intelligenceManager.runAssistMode();
       if (insight) {
-        try {
-          PhoneMirrorService.getInstance().publishAssistantMessage(
-            crypto.randomUUID(),
-            insight,
-            'Assist',
-          );
-        } catch (_) {}
       }
       return { insight };
     } catch (error: any) {
@@ -8162,13 +8000,6 @@ export function initializeIpcHandlers(appState: AppState): void {
           },
         );
         if (answer) {
-          try {
-            PhoneMirrorService.getInstance().publishAssistantMessage(
-              crypto.randomUUID(),
-              answer,
-              'What to Answer',
-            );
-          } catch (_) {}
         }
         return {
           answer,
@@ -8206,13 +8037,6 @@ export function initializeIpcHandlers(appState: AppState): void {
           mode: 'clarify',
         });
       } else {
-        try {
-          PhoneMirrorService.getInstance().publishAssistantMessage(
-            crypto.randomUUID(),
-            clarification,
-            'Clarify',
-          );
-        } catch (_) {}
       }
       return { clarification };
     } catch (error: any) {
@@ -8295,13 +8119,6 @@ export function initializeIpcHandlers(appState: AppState): void {
         problemStatement,
       );
       if (hint) {
-        try {
-          PhoneMirrorService.getInstance().publishAssistantMessage(
-            crypto.randomUUID(),
-            hint,
-            'Code Hint',
-          );
-        } catch (_) {}
       }
       return { hint };
     } catch (error: any) {
@@ -8351,13 +8168,6 @@ export function initializeIpcHandlers(appState: AppState): void {
         problemStatement,
       );
       if (script) {
-        try {
-          PhoneMirrorService.getInstance().publishAssistantMessage(
-            crypto.randomUUID(),
-            script,
-            'Brainstorm',
-          );
-        } catch (_) {}
       }
       return { script };
     } catch (error: any) {
@@ -8392,13 +8202,6 @@ export function initializeIpcHandlers(appState: AppState): void {
       const intelligenceManager = appState.getIntelligenceManager();
       const refined = await intelligenceManager.runFollowUp(intent, userRequest);
       if (refined) {
-        try {
-          PhoneMirrorService.getInstance().publishAssistantMessage(
-            crypto.randomUUID(),
-            refined,
-            'Follow Up',
-          );
-        } catch (_) {}
       }
       return { refined, intent };
     } catch (error: any) {
@@ -8412,13 +8215,6 @@ export function initializeIpcHandlers(appState: AppState): void {
       const intelligenceManager = appState.getIntelligenceManager();
       const summary = await intelligenceManager.runRecap();
       if (summary) {
-        try {
-          PhoneMirrorService.getInstance().publishAssistantMessage(
-            crypto.randomUUID(),
-            summary,
-            'Recap',
-          );
-        } catch (_) {}
       }
       return { summary };
     } catch (error: any) {
@@ -8432,13 +8228,6 @@ export function initializeIpcHandlers(appState: AppState): void {
       const intelligenceManager = appState.getIntelligenceManager();
       const questions = await intelligenceManager.runFollowUpQuestions();
       if (questions) {
-        try {
-          PhoneMirrorService.getInstance().publishAssistantMessage(
-            crypto.randomUUID(),
-            questions,
-            'Follow-Up Questions',
-          );
-        } catch (_) {}
       }
       return { questions };
     } catch (error: any) {
@@ -8452,14 +8241,6 @@ export function initializeIpcHandlers(appState: AppState): void {
       const intelligenceManager = appState.getIntelligenceManager();
       const answer = await intelligenceManager.runManualAnswer(question);
       if (answer) {
-        try {
-          PhoneMirrorService.getInstance().publishUserMessage(crypto.randomUUID(), question);
-          PhoneMirrorService.getInstance().publishAssistantMessage(
-            crypto.randomUUID(),
-            answer,
-            'Answer',
-          );
-        } catch (_) {}
       }
       return { answer, question };
     } catch (error: any) {
@@ -10248,91 +10029,6 @@ export function initializeIpcHandlers(appState: AppState): void {
     }
   });
 
-  // -----------------------------------------------------------------------
-  // Phone Mirror — stream live AI responses to a paired phone over WS.
-  // -----------------------------------------------------------------------
-
-  // Push status updates to the renderer whenever the service starts/stops
-  // or a phone connects/disconnects. Idempotent — multiple windows can listen.
-  //
-  // WINDOWS LEAK HARDENING (2026-07-11): the launcher renderer only consumes the
-  // boolean flags of PhoneMirrorInfo (extensionConnected → auto-dismiss the
-  // browser-extension onboarding toaster). It does NOT need the heavy fields
-  // (qrDataUrl base64 PNG, phone/ext tokens, url). Sending the full payload to
-  // the launcher on every status change — and re-sending identical payloads when
-  // the companion reconnects/flaps — pushes large serialized IPC messages into a
-  // renderer that, on a software-composited Windows box, may already be behind on
-  // paint. So for the launcher we (a) send ONLY the small flag subset, and
-  // (b) drop no-op repeats (same flags = no send). The Settings window still gets
-  // the full payload (it renders the QR + pairing UI).
-  let lastLauncherPhoneStatusKey = '';
-  PhoneMirrorService.getInstance().onStatusChange((info) => {
-    const launcherInfo = {
-      running: (info as any)?.running,
-      enabled: (info as any)?.enabled,
-      clients: (info as any)?.clients,
-      extensionConnected: (info as any)?.extensionConnected,
-    };
-    const key = JSON.stringify(launcherInfo);
-    if (key !== lastLauncherPhoneStatusKey) {
-      lastLauncherPhoneStatusKey = key;
-      const win = appState.getMainWindow();
-      if (win && !win.isDestroyed()) {
-        appState.recordNativeOomOutboundIpc(win.webContents.id, 'phone-mirror:status', [launcherInfo]);
-        win.webContents.send('phone-mirror:status', launcherInfo);
-      }
-    }
-    try {
-      const settingsWin = (appState as any).settingsWindowHelper?.getWindow?.();
-      if (settingsWin && !settingsWin.isDestroyed()) {
-        appState.recordNativeOomOutboundIpc(settingsWin.webContents.id, 'phone-mirror:status', [info]);
-        settingsWin.webContents.send('phone-mirror:status', info);
-      }
-    } catch (_) {
-      /* settings window may not exist yet */
-    }
-  });
-
-  // Captured DOM from the companion extension is only meaningful when an active
-  // session/overlay exists (the overlay window mounts NativelyInterface, which
-  // owns window.lastCapturedDOM). Point the service at the overlay so /dom
-  // delivers there — and returns 409 no_active_session when no overlay is live.
-  PhoneMirrorService.getInstance().setOverlayResolver(() => {
-    try {
-      return appState.getWindowHelper().getOverlayWindow();
-    } catch (_) {
-      return null;
-    }
-  });
-
-  // Smart Browser Context v2 — inject the AI metadata classifier so the /classify
-  // endpoint can route SANITIZED page metadata through the existing provider stack
-  // (LLMHelper.generateContentStructured) + the hard policy engine. The classifier
-  // is created lazily per call so it always binds the CURRENT LLMHelper (provider
-  // selection can change at runtime). Sensitive categories are forced to 'blocked'
-  // by the policy engine regardless of the AI verdict.
-  {
-    let browserMetaClassifier: BrowserMetadataClassifierService | null = null;
-    PhoneMirrorService.getInstance().setMetadataClassifier(async (meta: unknown) => {
-      const llmHelper = appState.processingHelper?.getLLMHelper?.() || null;
-      // Re-instantiate when the helper instance changes so the cache rides along
-      // with a stable helper but a provider switch is still picked up.
-      if (!browserMetaClassifier) {
-        browserMetaClassifier = new BrowserMetadataClassifierService(llmHelper);
-      }
-      // The sanitized metadata carries a hasSensitiveSignals flag from the
-      // extension's local sensitive-page detector — feed it in so the policy
-      // engine hard-blocks even if the AI misclassifies (defense-in-depth on top
-      // of the extension's own blocked floor, which already runs first).
-      const safeMeta = meta as SafeWebsiteMetadata;
-      const { decision } = await browserMetaClassifier.classifyAndDecide(
-        safeMeta,
-        safeMeta?.hasSensitiveSignals === true,
-      );
-      return { autoPolicy: decision.autoPolicy, category: decision.category };
-    });
-  }
-
   safeHandle('skills:list', () => {
     try {
       return SkillsManager.getInstance().listSkills();
@@ -10421,173 +10117,6 @@ export function initializeIpcHandlers(appState: AppState): void {
     console.warn('[IPC] skills:reap-stages startup hook error:', e?.message || e);
   }
 
-  safeHandle('phone-mirror:get-info', async () => {
-    return PhoneMirrorService.getInstance().snapshot();
-  });
-
-  safeHandle('phone-mirror:enable', async (_, exposeOnLan?: boolean) => {
-    try {
-      return await PhoneMirrorService.getInstance().start({
-        exposeOnLan: !!exposeOnLan,
-        persist: true,
-      });
-    } catch (e: any) {
-      console.error('[IPC] phone-mirror:enable error:', e);
-      return { error: e?.message || 'failed to start phone mirror' };
-    }
-  });
-
-  safeHandle('phone-mirror:disable', async () => {
-    await PhoneMirrorService.getInstance().stop({ persist: true });
-    return { success: true };
-  });
-
-  safeHandle('phone-mirror:set-lan', async (_, exposeOnLan: boolean) => {
-    const service = PhoneMirrorService.getInstance();
-    try {
-      return await service.setExposeOnLan(!!exposeOnLan);
-    } catch (e: any) {
-      // LAN exposure is a deliberate security widening — bound 0.0.0.0 lets any
-      // device on the Wi-Fi connect with the pairing token. Surface a modal
-      // confirmation; only flip the toggle if the user picks "Allow".
-      if (e?.name === 'LANBindConfirmationRequired') {
-        const win = appState.getMainWindow() ?? undefined;
-        const response = dialog.showMessageBoxSync(win as BrowserWindow | undefined, {
-          type: 'warning',
-          message: 'Allow LAN access?',
-          detail:
-            'This will bind Natively to 0.0.0.0:4123 so any device on this Wi-Fi network can connect with the pairing token. Continue?',
-          buttons: ['Cancel', 'Allow LAN access'],
-          defaultId: 0,
-          cancelId: 0,
-        });
-        if (response !== 1) {
-          return { ok: false, declined: true };
-        }
-        service.markLanBindDialogShown();
-        try {
-          return await service.setExposeOnLan(!!exposeOnLan);
-        } catch (e2: any) {
-          console.error('[IPC] phone-mirror:set-lan retry error:', e2);
-          return { error: e2?.message || 'failed to update lan setting' };
-        }
-      }
-      console.error('[IPC] phone-mirror:set-lan error:', e);
-      return { error: e?.message || 'failed to update lan setting' };
-    }
-  });
-
-  safeHandle('phone-mirror:rotate-token', async () => {
-    try {
-      return await PhoneMirrorService.getInstance().rotateToken();
-    } catch (e: any) {
-      console.error('[IPC] phone-mirror:rotate-token error:', e);
-      return { error: e?.message || 'failed to rotate token' };
-    }
-  });
-
-  // Open the 60s one-click pairing window for the companion browser extension.
-  // The user clicks "Connect browser extension" in Settings → this arms the
-  // /pair endpoint → the extension's "Connect to Natively" button fetches the
-  // token. Requires Phone Mirror to be running (the /pair route lives on its
-  // HTTP server).
-  safeHandle('phone-mirror:arm-extension', async () => {
-    try {
-      const svc = PhoneMirrorService.getInstance();
-      if (!svc.isRunning()) {
-        return { error: 'Enable Phone Mirror first' };
-      }
-      return svc.armExtensionPairing();
-    } catch (e: any) {
-      console.error('[IPC] phone-mirror:arm-extension error:', e);
-      return { error: e?.message || 'failed to arm extension pairing' };
-    }
-  });
-
-  // Multi-tab picker: ask the connected extension for its open tabs so the overlay
-  // can let the user choose which one to capture.
-  safeHandle('phone-mirror:list-tabs', async () => {
-    try {
-      const tabs = await PhoneMirrorService.getInstance().listTabs();
-      return { tabs };
-    } catch (e: any) {
-      console.error('[IPC] phone-mirror:list-tabs error:', e);
-      return { tabs: [], error: e?.message || 'failed to list tabs' };
-    }
-  });
-
-  // Capture a specific tab the user picked from the multi-tab picker.
-  safeHandle('phone-mirror:capture-tab', async (_, tabId?: number) => {
-    try {
-      if (typeof tabId !== 'number') return { ok: false, reason: 'invalid tabId' };
-      return await PhoneMirrorService.getInstance().requestDomCapture({ tabId });
-    } catch (e: any) {
-      console.error('[IPC] phone-mirror:capture-tab error:', e);
-      return { ok: false, reason: e?.message || 'failed to capture tab' };
-    }
-  });
-
-  // Smart Browser Context v2 — pre-answer auto-context pull. The renderer calls
-  // this just before generating an answer; the extension auto-attaches a coding
-  // page if one is in front, otherwise resolves attached:false and the answer
-  // proceeds without browser context. Honors the user's auto-attach setting.
-  safeHandle('phone-mirror:request-auto-context', async () => {
-    try {
-      const settings = SettingsManager.getInstance().getBrowserContextSettings();
-      // Opted-in extra categories that should auto-attach beyond coding (their
-      // registry policy is 'ask'). The extension treats these as eligible locally
-      // (no AI needed) when their toggle is on.
-      const extraCategories: BrowserContextCategory[] = [];
-      if (settings.autoDetectJobDescriptions) extraCategories.push('job_description');
-      if (settings.autoDetectDeveloperDocs) extraCategories.push('developer_docs');
-
-      // Proceed when ANY auto path is enabled: coding auto-attach, an extra
-      // category, the opt-in AI classifier, or experimental full-page mode. All
-      // of them relax only the coding-only gate — NEVER the sensitive floor
-      // (email/chat/banking/auth stay blocked in the extension).
-      const anyEnabled =
-        settings.autoAttachCoding ||
-        settings.experimentalFullPageCapture ||
-        settings.aiClassifierEnabled ||
-        extraCategories.length > 0;
-      if (!anyEnabled) {
-        return { attached: false, reason: 'disabled' };
-      }
-      return await PhoneMirrorService.getInstance().requestAutoContext({
-        // When "auto-attach coding" is OFF, tell the extension to NOT treat a
-        // high-confidence coding page as eligible — otherwise a coding page would
-        // still be captured whenever any OTHER auto path (JD/docs/AI/full-page) is
-        // on. The other paths are independent and unaffected.
-        codingEnabled: settings.autoAttachCoding,
-        fullPage: settings.experimentalFullPageCapture,
-        aiClassify: settings.aiClassifierEnabled,
-        extraCategories: extraCategories.length ? extraCategories : undefined,
-      });
-    } catch (e: any) {
-      console.error('[IPC] phone-mirror:request-auto-context error:', e);
-      return { attached: false, reason: e?.message || 'failed to request auto context' };
-    }
-  });
-
-  // Stealth screenshot capture triggered from the phone UI.
-  // Takes a screenshot on the PC (adding it to the screenshot queue so it can
-  // be used in the next AI prompt), then broadcasts an ack so the phone shows
-  // a confirmation toast.  The image is NOT sent to the phone — the phone is
-  // just a remote shutter; the screenshot stays on the desktop for AI use.
-  safeHandle('phone-mirror:push-screenshot', async (_, screenshotPath?: string) => {
-    try {
-      const imgPath = screenshotPath || (await appState.takeScreenshot(false));
-      PhoneMirrorService.getInstance().publishAck(
-        'screenshot',
-        'Screenshot captured — queued for AI',
-      );
-      return { success: true, path: imgPath };
-    } catch (e: any) {
-      console.error('[IPC] phone-mirror:push-screenshot error:', e);
-      return { error: e?.message || 'failed to capture screenshot' };
-    }
-  });
-
   // ── Smart Browser Context v2 — settings get/set ────────────────────────
   // Manual capture is always on (no flag). These drive the AUTO behaviour. The
   // resolved getter applies the documented defaults in one place (SettingsManager).
@@ -10637,290 +10166,6 @@ export function initializeIpcHandlers(appState: AppState): void {
       }
     },
   );
-
-  // Route commands sent by the phone browser back to the Electron renderer so
-  // the existing action system (global-shortcut events, chat stream) handles
-  // them without duplicating logic.
-  PhoneMirrorService.getInstance().onPhoneCommand(async (cmd) => {
-    const win = appState.getMainWindow();
-
-    if (cmd.type === 'action') {
-      // Re-use the same global-shortcut dispatch path the keyboard uses.
-      // This keeps phone actions identical to key-triggered stealth actions.
-      const helper = appState.getWindowHelper();
-      const sent = new Set<number>();
-      for (const w of [helper.getLauncherWindow(), helper.getOverlayWindow()]) {
-        if (!w || w.isDestroyed() || sent.has(w.id)) continue;
-        sent.add(w.id);
-        try {
-          w.webContents.send('global-shortcut', { action: cmd.action });
-        } catch {
-          // Window is tearing down; keep delivering to any other valid surface.
-        }
-      }
-    } else if (cmd.type === 'chat') {
-      // Stream a phone-initiated chat through the LLM exactly like gemini-chat-stream
-      // but without requiring a renderer event sender. Tokens are pushed directly to
-      // the phone over WebSocket; desktop renderer also receives them so both views
-      // stay in sync.
-      // myStreamId is the globally-unique correlation id (shared counter with desktop
-      // chat). myPhoneId is the phone-only supersession marker — a later phone message
-      // bumps it, a desktop message does NOT, so cross-surface false supersession can't
-      // happen (audit RC-1 / finding #2).
-      const myStreamId = ++_chatStreamId;
-      const myPhoneId = ++_phoneChatLatestId;
-      // Symmetric strip on the phone-mirror chat path (defense-in-depth; see
-      // stripEmbeddedAnswerContract for the contract-block leak rationale).
-      const message = stripEmbeddedAnswerContract(cmd.message);
-      const phoneMirror = PhoneMirrorService.getInstance();
-      const intelligenceManager = appState.getIntelligenceManager();
-
-      // Document-grounded custom mode (audit 2026-06-27): the phone chat path is
-      // a SECOND ungated entry — it captures the rolling snapshot and saves the
-      // answer just like gemini-chat-stream. Mirror the doc-grounded gates here:
-      // strip prior-assistant turns from the snapshot (topic-collapse), and block
-      // an invalid answer from being saved (contamination loop).
-      let phoneDocGrounded = false;
-      try {
-        const { ModesManager } = require('./services/ModesManager');
-        phoneDocGrounded = ModesManager.getInstance().getActiveModeInfo()?.documentGroundedCustomModeActive === true;
-      } catch { /* mode unavailable — treat as non-doc-grounded */ }
-
-      // Doc-grounded strict-isolation (audit #3, 2026-07-05): mirror the
-      // desktop chat's gate (ipcHandlers.ts:1438) — when the active mode is
-      // doc-grounded AND docGroundedStrictIsolation is enabled, the phone-chat
-      // path must NOT inject Hindsight live recall. Today the phone path
-      // never consults Hindsight at all, so this is a no-op defensive check
-      // that pins the behavior for when a future implementation adds Hindsight
-      // here. The skip is the same condition as the desktop path so the
-      // two surfaces stay symmetric on the doc-grounded path.
-      const { isIntelligenceFlagEnabled } = require('./intelligence/intelligenceFlags');
-      const phoneDocGroundedSkipRecall = phoneDocGrounded
-        && isIntelligenceFlagEnabled('docGroundedStrictIsolation');
-
-      // Capture rolling context BEFORE adding the new user message — same ordering
-      // as gemini-chat-stream so Recap / Follow Up / What to Answer see phone turns.
-      let context: string | undefined;
-      try {
-        const snap = intelligenceManager.getFormattedContext(100);
-        if (snap && snap.trim().length > 0) {
-          context = phoneDocGrounded ? stripPriorAssistantTurns(snap) : snap;
-          if (phoneDocGrounded && context.trim().length === 0) context = undefined;
-        }
-      } catch (ctxErr) {
-        console.warn('[PhoneMirror] Failed to capture pre-turn context:', ctxErr);
-      }
-
-      intelligenceManager.addTranscript(
-        { text: message, speaker: 'user', timestamp: Date.now(), final: true },
-        true,
-      );
-
-      try {
-        phoneMirror.publishUserMessage(String(myStreamId), message);
-      } catch (_) {}
-      // Notify renderer so it can display the incoming phone message too.
-      win?.webContents.send('phone-mirror:incoming-chat', {
-        message,
-        streamId: String(myStreamId),
-      });
-
-      try {
-        const llmHelper = appState.processingHelper.getLLMHelper();
-        // AbortController so the live-deadline driver can cancel a stalled provider
-        // request (not just stop emitting) — mirrors the desktop chat path.
-        const phoneController = new AbortController();
-        // Compute the same routing decision the desktop gemini-chat-stream uses
-        // (ipcHandlers.ts ~959) so the phone-chat path applies the active custom
-        // mode's voice + retrieved product material just like the desktop surface.
-        // Without this, the mode-suffix skip-gate (CHAT_MODE_PROMPT is a "universal
-        // override") suppresses injection for non-custom regular modes like
-        // lecture/team-meet + a sales question over phone (audit #2, 2026-07-05).
-        let phoneRouteOptions: StreamRouteOptions | undefined;
-        let phonePlanForOwnership: any = null;
-        try {
-          const llmMod = require('./llm');
-          if (typeof llmMod.planAnswer === 'function') {
-            const phonePlan = llmMod.planAnswer({
-              question: message,
-              source: 'manual_input',
-              speakerPerspective: 'user',
-              activeMode: (() => { try { return require('./services/ModesManager').ModesManager.getInstance().getActiveModeInfo?.(); } catch { return null; } })(),
-            });
-            phonePlanForOwnership = phonePlan;
-            phoneRouteOptions = {
-              answerType: phonePlan?.answerType || 'unknown_answer',
-              forbiddenContextLayers: phonePlan?.forbiddenContextLayers,
-            };
-          }
-        } catch { /* plan unavailable — fall back to no routeOptions (legacy behavior) */ }
-
-        // SOURCE-OWNERSHIP GATE (2026-07-06): the phone-mirror path mirrors the
-        // desktop chat and is a second answer surface. It has no deterministic
-        // profile fast-path today, but an EXPLICIT "my resume/project" ask in a
-        // reference_files_only / transcript_only mode must get the same
-        // source-honest switch line here rather than a doc-grounded refusal.
-        //
-        // Senior-review fix (2026-07-16, audit ab9dc2f0): the prior commit
-        // body claimed phone-mirror was threaded with turnSourceDecision
-        // but the IPC handler was actually stale. Closing that gap here so
-        // the JD-only / resume-only / profile-only source selection survives
-        // on the phone surface.
-        try {
-          const { buildCustomModeExecutionContract } = require('./llm/customModeExecutionContract');
-          const { resolveSourceOwnership, buildSourceSwitchClarification } = require('./llm/sourceOwnership');
-          const { resolveTurnSourceDecision } = require('./llm/turnSourceDecision') as typeof import('./llm/turnSourceDecision');
-          const { resolveExplicitSourceRequest: _pResolveSwitch, resolveExplicitSourceRequests: _pResolveSwitches } = require('./intelligence/context-os/explicitSourceSwitch') as typeof import('./intelligence/context-os/explicitSourceSwitch');
-          const _pMode = (() => { try { return require('./services/ModesManager').ModesManager.getInstance().getActiveModeInfo?.(); } catch { return null; } })();
-          const _pOrch = llmHelper.getKnowledgeOrchestrator?.();
-          const _pHasProfile = Boolean(_pOrch?.activeResume?.structured_data);
-          const _pHasJd = Boolean((_pOrch as any)?.activeJD?.structured_data);
-          const _pSourceContract = (_pMode as any)?.sourceContract ?? null;
-          const _pExplicitSwitch = _pResolveSwitch(String(message || ''));
-          const _pExplicitRequests = _pResolveSwitches(String(message || ''));
-          // Canonical decision is the authority for capability issuance.
-          // Null only when no persisted contract exists (mid-boot) — the
-          // legacy heuristic then runs.
-          const _pTurnSourceDecision = _pSourceContract
-            ? resolveTurnSourceDecision({
-              sourceContract: _pSourceContract,
-              persistedSourceAuthority: _pSourceContract.sourceAuthority,
-              explicitRequest: _pExplicitSwitch,
-              explicitRequests: _pExplicitRequests,
-              availability: {
-                hasReferenceFiles: Boolean((_pMode as any)?.hasReferenceFiles),
-                hasProfileFacts: _pHasProfile,
-                hasJobDescription: _pHasJd,
-                hasLiveTranscript: Boolean(context && String(context).trim()),
-                hasMeetingRag: false,
-              },
-            })
-            : null;
-          // JD folds onto the profile family at the legacy layer; the
-          // canonical decision preserves their distinction at the
-          // allowedEvidenceKinds level.
-          const _pLegacyUserExplicitSource = _pExplicitSwitch === 'job_description'
-            ? 'profile'
-            : _pExplicitSwitch;
-          const _pContract = buildCustomModeExecutionContract({
-            question: String(message || ''),
-            streamRoute: 'phone_mirror',
-            modeId: _pMode?.id ?? null,
-            modeUniqueId: _pMode?.id ?? null,
-            answerType: phonePlanForOwnership?.answerType ?? null,
-            isCustomMode: _pMode?.isCustom === true,
-            isDocGroundedCustomModeActive: _pMode?.documentGroundedCustomModeActive === true,
-            hasReferenceFiles: Boolean((_pMode as any)?.hasReferenceFiles),
-            hasCustomPrompt: Boolean((_pMode as any)?.hasCustomPrompt),
-            hasLiveTranscript: Boolean(context && String(context).trim()),
-            hasProfileFacts: _pHasProfile,
-            hasMeetingRag: false,
-            hasLongTermMemory: false,
-            persistedSourceAuthority: (_pMode as any)?.sourceContract?.sourceAuthority ?? null,
-            userExplicitSource: _pLegacyUserExplicitSource,
-            turnSourceDecision: _pTurnSourceDecision,
-          });
-          const _pOwn = resolveSourceOwnership({
-            question: String(message || ''),
-            contract: _pContract,
-            profileContextPolicy: phonePlanForOwnership?.profileContextPolicy ?? 'allowed',
-            answerType: phonePlanForOwnership?.answerType ?? 'unknown_answer',
-            hasProfileFacts: _pHasProfile,
-            turnSourceDecision: _pTurnSourceDecision,
-          });
-          if (_pOwn.shouldClarifyInsteadOfProfile && _phoneChatLatestId === myPhoneId) {
-            const clarify = buildSourceSwitchClarification(_pOwn.owner, _pExplicitSwitch);
-            try { phoneMirror.publishToken(String(myStreamId), clarify); } catch (_) {}
-            try { phoneMirror.publishDone(String(myStreamId), clarify); } catch (_) {}
-            win?.webContents.send('gemini-stream-token', clarify, { streamId: myStreamId });
-            win?.webContents.send('gemini-stream-done', { streamId: myStreamId });
-            intelligenceManager.addAssistantMessage(clarify, undefined, 'phone_mirror');
-            intelligenceManager.logUsage('chat', message, clarify);
-            if (isIntelligenceFlagEnabled('trace')) {
-              console.log('[SOURCE-GUARD] phone: blocked source=profile reason=explicit_profile_ask_in_reference_mode', { owner: _pOwn.owner });
-            }
-            return;
-          }
-        } catch (pOwnErr: any) {
-          // Best-effort — never break the phone path on the ownership check.
-          if (isIntelligenceFlagEnabled('trace')) console.warn('[SOURCE-GUARD] phone ownership check skipped (non-fatal):', pOwnErr?.message);
-        }
-        const stream = llmHelper.streamChat(message, undefined, context, CHAT_MODE_PROMPT, false, false, [], phoneController.signal, undefined, phoneRouteOptions);
-        let full = '';
-        let phoneSuperseded = false;
-        // Deadline-guarded (Issue 1) — this is a live streaming surface too: a hung
-        // provider must never block it forever. Uses the standard chat first-useful
-        // budget; an inter-token stall guard protects long answers.
-        await raceStreamWithDeadline({
-          stream: stream as AsyncGenerator<string>,
-          firstUsefulDeadlineMs: firstUsefulDeadlineMs('general_meeting_answer'),
-          isUsefulYet: () => full.trim().length >= 5,
-          shouldAbort: () => {
-            if (_phoneChatLatestId !== myPhoneId) {
-              console.log(`[PhoneMirror] phone-chat ${myStreamId} superseded by a newer phone message, stopping.`);
-              phoneSuperseded = true; return true;
-            }
-            // Cancel early if all phones disconnected and there's no desktop renderer.
-            if (!phoneMirror.hasClients() && win?.isDestroyed()) return true;
-            return false;
-          },
-          onToken: (token: string) => {
-            try { phoneMirror.publishToken(String(myStreamId), token); } catch (_) {}
-            // streamId lets the desktop renderer drop tokens from a superseded
-            // chat stream (audit finding #3); backward-compatible optional arg.
-            win?.webContents.send('gemini-stream-token', token, { streamId: myStreamId });
-            full += token;
-          },
-          onCleanup: () => { try { phoneController.abort(); } catch { /* noop */ } },
-        });
-        if (phoneSuperseded) return;
-        if (_phoneChatLatestId === myPhoneId) {
-          try {
-            phoneMirror.publishDone(String(myStreamId), full);
-          } catch (_) {}
-          win?.webContents.send('gemini-stream-done', { streamId: myStreamId });
-          // Document-grounded: block a greeting/empty answer from SessionTracker
-          // so it can't contaminate the next turn (same backstop as the desktop
-          // path, minus the regenerate — the phone surface keeps it simple).
-          const phoneTrim = full.trim();
-          const phoneInvalid = phoneDocGrounded && (
-            phoneTrim.length < 8
-            || /what would you like help with/i.test(phoneTrim)
-            || /^\s*(?:hey|hi|hello)[!,.]?\s*(?:there)?[!,.]?\s*(?:what would you like help with|how can i help|what can i (?:help|do))/i.test(phoneTrim)
-          );
-          if (phoneInvalid) {
-            console.warn('[PhoneMirror] document-grounded invalid answer blocked from SessionTracker', { chars: phoneTrim.length });
-          }
-          if (phoneTrim.length > 0 && !phoneInvalid) {
-            intelligenceManager.addAssistantMessage(full, undefined, 'phone_mirror');
-            intelligenceManager.logUsage('chat', message, full);
-          }
-        }
-      } catch (err: any) {
-        console.error('[PhoneMirror] phone-chat stream error:', err);
-        if (_phoneChatLatestId === myPhoneId) {
-          try {
-            phoneMirror.publishError(String(myStreamId), err?.message || 'stream error');
-          } catch (_) {}
-          win?.webContents.send('gemini-stream-error', err?.message || 'stream error');
-        }
-      }
-    } else if (cmd.type === 'screenshot') {
-      // Stealth screenshot: capture on PC → add to screenshot queue → ack to phone.
-      // The image is NOT sent to the phone — it stays on the desktop for AI use.
-      // The phone simply acts as a remote shutter button.
-      try {
-        await appState.takeScreenshot(false);
-        PhoneMirrorService.getInstance().publishAck(
-          'screenshot',
-          'Screenshot captured — queued for AI',
-        );
-      } catch (e: any) {
-        console.error('[PhoneMirror] phone screenshot request failed:', e);
-        PhoneMirrorService.getInstance().publishAck('screenshot', 'Screenshot failed');
-      }
-    }
-  });
 
   // ============================================================
   // E2E TEST HARNESS IPC (gated behind NATIVELY_E2E=1) ─────────

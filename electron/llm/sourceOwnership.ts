@@ -26,7 +26,7 @@
 //   - No document terms, no company names, no question strings are hardcoded.
 //
 // Consumed by: the manual gemini-chat-stream fast-path gate, the OKF
-// profile-evidence gate, the phone-mirror path, and the WTA path — so every
+// profile-evidence gate, and the WTA path — so every
 // answer producer shares ONE ownership decision.
 
 import type { CustomModeExecutionContract } from './customModeExecutionContract';

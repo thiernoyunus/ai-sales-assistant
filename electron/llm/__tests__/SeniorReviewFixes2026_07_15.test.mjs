@@ -217,9 +217,9 @@ test('CRITICAL #2: validateFinalPromptEvidence without decision is permissive (p
   assert.equal(result.ok, true, 'without a decision, validator cannot catch a forbidden leak');
 });
 
-// ── HIGH — phone-mirror integration smoke (deterministic) ──────────────────
+// ── HIGH — manual-chat integration smoke (deterministic) ───────────────────
 
-test('HIGH: buildCustomModeExecutionContract honors a JD-only turnSourceDecision on phone_mirror', () => {
+test('HIGH: buildCustomModeExecutionContract honors a JD-only turnSourceDecision on manual_chat_stream', () => {
   const decision = resolveTurnSourceDecision({
     sourceContract: {
       defaultOwner: 'reference_files',
@@ -231,7 +231,7 @@ test('HIGH: buildCustomModeExecutionContract honors a JD-only turnSourceDecision
   });
   const contract = buildCustomModeExecutionContract({
     question: 'According to the JD, what is the role?',
-    streamRoute: 'phone_mirror',
+    streamRoute: 'manual_chat_stream',
     modeId: 'mode-pm', modeUniqueId: 'mode-pm',
     answerType: 'jd_requirements_answer',
     isCustomMode: true,

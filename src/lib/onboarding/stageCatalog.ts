@@ -1,6 +1,6 @@
 /**
- * Stage catalog — declarative configs for the 8 orchestrated onboarding stages
- * (10 entries incl. quiet_window).
+ * Stage catalog — declarative configs for the 7 orchestrated onboarding stages
+ * (8 entries incl. quiet_window).
  *
  * Order matters: stages are evaluated front-to-back by the orchestrator, and
  * the first eligible wins (single-slot invariant). The quiet_window is
@@ -16,7 +16,6 @@ export const STAGE_ORDER: ToasterId[] = [
   'profile_intelligence',
   'modes_manager',
   'trial_promo',
-  'support',
   'ads',
   'review_prompt',
 ];
@@ -124,31 +123,11 @@ export const STAGES: StageConfig[] = [
   },
 
   // ──────────────────────────────────────────────────────────────
-  // 6. Support — after quiet_window resolves
-  // ──────────────────────────────────────────────────────────────
-  {
-    id: 'support',
-    order: 6,
-    triggers: {
-      requiresHomepageMounted: true,
-      requiresHomepageDuration: 10_000,
-      requiresForeground: true,
-      requiresMeetingInactive: true,
-    },
-    requiresStages: ['quiet_window'],
-    skipWhen: (s) => !s.donationShouldShow || s.isPremium,
-    customPredicate: (ctx: Ctx) =>
-      // Trigger after enough engagement: 10 turns OR 10 successful startups
-      ctx.turnCount >= 10 || ctx.startupCount >= 10,
-    cooldownMs: () => 14 * 24 * 60 * 60 * 1000, // 14 days
-  },
-
-  // ──────────────────────────────────────────────────────────────
-  // 7. Ads — useAdCampaigns rotation. After support seen/skipped.
+  // 6. Ads — useAdCampaigns rotation. After quiet_window resolves.
   // ──────────────────────────────────────────────────────────────
   {
     id: 'ads',
-    order: 7,
+    order: 6,
     triggers: {
       requiresHomepageMounted: true,
       requiresHomepageDuration: 10_000,
@@ -156,17 +135,17 @@ export const STAGES: StageConfig[] = [
       requiresMeetingInactive: true,
       requiresStartupCount: 4,
     },
-    requiresStages: ['support'],
+    requiresStages: ['quiet_window'],
     skipWhen: (s) => s.isPremium,
     cooldownMs: () => 14 * 24 * 60 * 60 * 1000, // 14 days
   },
 
   // ──────────────────────────────────────────────────────────────
-  // 8. Review prompt — late-stage engagement gate
+  // 7. Review prompt — late-stage engagement gate
   // ──────────────────────────────────────────────────────────────
   {
     id: 'review_prompt',
-    order: 8,
+    order: 7,
     triggers: {
       requiresHomepageMounted: true,
       requiresHomepageDuration: 10_000,

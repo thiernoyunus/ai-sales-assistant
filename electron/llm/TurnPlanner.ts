@@ -2,7 +2,7 @@
 //
 // Campaign-3 (fix/answer-policy-engine) — THE single, pure, deterministic
 // per-turn decision site consumed by every answer surface (manual chat, WTA,
-// phone mirror, recap/follow-up, meeting summary).
+// recap/follow-up, meeting summary).
 //
 // Architecture (Campaign 3 §2):
 //   1. ONE decision per turn — no more "dual brains". ProfileIntelligence's
@@ -312,7 +312,7 @@ function groundingProfileFor(input: TurnPlanInput): GroundingProfile {
 
 /**
  * The single, pure, deterministic per-turn decision site consumed by every
- * answer surface (manual chat, WTA, phone mirror, recap/follow-up,
+ * answer surface (manual chat, WTA, recap/follow-up,
  * meeting summary). Replaces the dual-brains routing where
  * `ProfileIntelligence.answerType` and `KnowledgeOrchestrator.intent`
  * each independently gated sources — they are now SIGNALS consumed

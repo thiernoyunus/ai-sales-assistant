@@ -104,7 +104,7 @@ describe('resolveCanonicalTurn: direct-helper parity across answer surfaces', ()
       seedCandidateBackground: true,
     },
     {
-      name: 'phone-mirror JD requirement answer',
+      name: 'manual-chat JD requirement answer',
       input: input('What skills are required for this role?', 'transcript'),
       answerType: 'jd_requirements_answer',
       questionKind: 'jd_question',

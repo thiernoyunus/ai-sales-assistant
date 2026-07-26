@@ -44,7 +44,6 @@ const ITEM    = {
 // ─── Custom hero icon: simplified browser frame with extension piece ──
 // Reads instantly as "browser extension" — the affordance Chrome itself uses
 // for extension install UI. Avoids the generic-Puzzle / AI-piece metaphor.
-// (Imported from BrowserExtensionIcon so PhoneMirrorSettings can reuse it.)
 const BrowserExtensionHeroIcon: React.FC<{ size?: number }> = ({ size = 64 }) => (
   <BrowserExtensionIcon color={T.indigo} size={size} />
 );
@@ -85,18 +84,6 @@ export const BrowserExtensionToaster: React.FC<Props> = ({ isOpen, onDismiss, on
   // Test hook: ?extToaster=force bypasses orchestrator and shows immediately.
   const testForceShow = typeof window !== 'undefined'
     && new URLSearchParams(window.location.search).get('extToaster') === 'force';
-
-  useEffect(() => {
-    // Auto-dismiss silently the moment the extension connects while visible.
-    if (!isOpen || testForceShow) return;
-    const unsub = window.electronAPI?.onPhoneMirrorStatus?.(info => {
-      if (info?.extensionConnected) {
-        try { localStorage.setItem(DISMISS_KEY, '1'); } catch { /* ignore */ }
-        onDismiss();
-      }
-    });
-    return () => { unsub?.(); };
-  }, [isOpen, testForceShow, onDismiss]);
 
   // ─── Escape key ─────────────────────────────────────────────
   useEffect(() => {

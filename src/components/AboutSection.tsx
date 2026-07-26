@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { useT } from '../i18n';
 import {
     Github, Twitter, Shield, Cpu, Database,
@@ -13,40 +13,9 @@ interface AboutSectionProps { }
 export const AboutSection: React.FC<AboutSectionProps> = () => {
     const t = useT();
     const isLight = useResolvedTheme() === 'light';
-    const donationClickTimeRef = useRef<number | null>(null);
-
-    // Initial check for donation status not needed for visuals anymore (since we removed key input)
-    // but we might want to hide the support button if donated? 
-    // User said "wont show if the user open the donate button" -> this refers to the toaster.
-    // For About section, usually validation/support button stays but maybe changes text?
-    // I'll keep it as is, just the logic change.
-
-    useEffect(() => {
-        const handleFocus = async () => {
-            if (donationClickTimeRef.current) {
-                const elapsed = Date.now() - donationClickTimeRef.current;
-                if (elapsed > 20000) { // 20 seconds
-                    console.log("User returned after >20s. Marking as donated.");
-                    await window.electronAPI?.setDonationComplete();
-                    donationClickTimeRef.current = null; // Reset
-                } else {
-                    console.log("User returned too quickly (<20s). Not confirming donation.");
-                    donationClickTimeRef.current = null;
-                }
-            }
-        };
-
-        window.addEventListener('focus', handleFocus);
-        return () => window.removeEventListener('focus', handleFocus);
-    }, []);
 
     const handleOpenLink = (e: React.MouseEvent<HTMLAnchorElement>, url: string) => {
         e.preventDefault();
-
-        // Special handling for donation link
-        if (url.includes('buymeacoffee.com')) {
-            donationClickTimeRef.current = Date.now();
-        }
 
         // Use backend shell.openExternal
         if (window.electronAPI?.openExternal) {

@@ -3,7 +3,7 @@
 // Pure helper for the renderer's chat-stream token guard (audit finding #3).
 //
 // Background: the main process emits chat tokens on a single `gemini-stream-token`
-// channel from BOTH the desktop chat path and the phone-mirror chat path. The
+// channel from multiple desktop answer paths. The
 // renderer's streaming state machine keys only on the coarse `intent` ('chat'),
 // so two genuinely-concurrent chat streams (e.g. desktop + phone) could interleave
 // their tokens into one bubble. Main-side supersession already prevents the common

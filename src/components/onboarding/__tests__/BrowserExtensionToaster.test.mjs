@@ -96,20 +96,6 @@ test('source: opens Chrome Web Store URL via openExternal on CTA click', () => {
     'CTA must call window.electronAPI.openExternal(CHROME_STORE_URL)');
 });
 
-test('source: subscribes to onPhoneMirrorStatus to auto-dismiss on connect', () => {
-  assert.ok(source.includes('onPhoneMirrorStatus(info =>'),
-    'must subscribe to onPhoneMirrorStatus');
-  assert.ok(source.includes("if (info?.extensionConnected)"),
-    'must check info.extensionConnected flag');
-});
-
-test('source: phoneMirrorGetInfo queried before scheduling the visible timer', () => {
-  assert.ok(source.includes('phoneMirrorGetInfo'),
-    'must call phoneMirrorGetInfo');
-  assert.ok(source.includes("if (!info || info.extensionConnected) return"),
-    'must skip if extension is already connected');
-});
-
 test('source: indigo accent — distinct from violet trial and coral support', () => {
   assert.ok(source.includes("indigo: '#6366F1'"),
     'must use indigo #6366F1 as the primary accent');

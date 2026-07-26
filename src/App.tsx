@@ -613,7 +613,7 @@ const App: React.FC = () => {
               macTCCBlocked,
               seenModesOnboarding: seenModes,
               seenProfileOnboarding: seenProfile,
-              extensionSupported: true, // updated by phoneMirrorGetInfo below
+              extensionSupported: true,
             });
           })
           .catch(() => {
@@ -622,20 +622,6 @@ const App: React.FC = () => {
       } else {
         setOrchestratorUserState({ permsShown, seenModesOnboarding: seenModes, seenProfileOnboarding: seenProfile });
       }
-
-      // Donation status (support toaster gate)
-      window.electronAPI?.getDonationStatus?.()
-        .then(s => setOrchestratorUserState({ donationShouldShow: s?.shouldShow ?? false }))
-        .catch(() => {});
-
-      // Extension connection state
-      window.electronAPI?.phoneMirrorGetInfo?.()
-        .then(info => setOrchestratorUserState({
-          extensionConnected: info?.extensionConnected ?? false,
-          extensionSupported: true,
-          isV2_8_OrNewer: true, // min version handled inside the stage skipWhen
-        }))
-        .catch(() => {});
     }
 
     // Listen for open-settings-tab events from other windows (e.g. overlay Modes button)

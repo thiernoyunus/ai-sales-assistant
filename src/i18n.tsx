@@ -41,7 +41,6 @@ const RU: Record<string, string> = {
     'Calendar': 'Календарь',
     'Audio': 'Звук',
     'Keybinds': 'Горячие клавиши',
-    'Sync': 'Синхронизация',
     'Intelligence': 'Интеллект',
     'Setup & Help': 'Настройка и помощь',
     'About': 'О программе',
@@ -115,12 +114,6 @@ const RU: Record<string, string> = {
     'Cloud provider data scopes': 'Область данных облачных провайдеров',
     'Control what data cloud AI providers can access. Disabled types are handled locally for privacy.':
         'Управляйте доступом облачных провайдеров к данным. Отключённые типы обрабатываются локально ради приватности.',
-
-    // ── Sync (Phone Mirror) ──
-    'Enable Phone Mirror': 'Включить зеркалирование телефона',
-    'Browser Extension': 'Расширение браузера',
-    'Phone Mirror runs on your local network. No traffic leaves this machine.':
-        'Зеркалирование телефона работает в локальной сети. Трафик не покидает этот компьютер.',
 
     // ── Meeting interface (overlay) ──
     'Listening...': 'Слушаю...',

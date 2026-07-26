@@ -1047,7 +1047,6 @@ try {
 
 import { CredentialsManager } from "./services/CredentialsManager"
 import { SettingsManager } from "./services/SettingsManager"
-import { PhoneMirrorService, shouldStartPhoneMirrorOnBoot } from "./services/PhoneMirrorService"
 import { setVerboseLoggingFlag } from "./verboseLog"
 import { ReleaseNotesManager } from "./update/ReleaseNotesManager"
 import { OllamaManager } from './services/OllamaManager'
@@ -1494,39 +1493,11 @@ export class AppState {
           await this.captureScreenAndProcess();
 
         } else if (actionId === 'general:capture-dom') {
-          // One hotkey, the right capture: if the companion browser extension is
-          // connected, ask it to grab the active tab's page context (delivered to
-          // the overlay via /dom). If it isn't reachable — not in a browser, SW
-          // asleep, Phone Mirror off — fall back to a screenshot automatically so
-          // the gesture always does something. See natively-browser/README.md.
-          let captured = false;
-          try {
-            const svc = PhoneMirrorService.getInstance();
-            // MV3 race fix: the extension's service worker may have been idle-killed
-            // and is only just reconnecting (its wake-on-interaction handlers fire as
-            // the user touches the browser right before capturing). Poll briefly for
-            // an extension to connect before deciding — otherwise a just-woken SW
-            // would fall straight through to a screenshot. waitForExtension resolves
-            // immediately when one is already connected.
-            const extReady = svc.isRunning() && (await svc.waitForExtension());
-            if (extReady) {
-              const result = await svc.requestDomCapture();
-              captured = result.ok;
-              if (captured) {
-                // The extension only acks `done` after /dom returns 200, so by here
-                // the overlay has already received the page context (it surfaces a
-                // "Page context" pill and uses it on the next answer).
-                console.log('[Main] DOM capture delivered to overlay');
-              } else {
-                console.log('[Main] DOM capture unavailable (', result.reason, ') — falling back to screenshot');
-              }
-            }
-          } catch (e: any) {
-            console.warn('[Main] DOM capture error — falling back to screenshot:', e?.message || e);
-          }
-          if (!captured) {
-            await this.captureScreenAndProcess();
-          }
+          // The companion-extension DOM capture transport was removed along with
+          // the local HTTP/WS server, so this gesture always falls back to a
+          // screenshot. Kept as its own action id so the existing keybind and
+          // its persisted config keep working.
+          await this.captureScreenAndProcess();
 
         // --- STEALTH SHORTCUTS: no focus, no show, pure IPC dispatch ---
 
@@ -7079,56 +7050,6 @@ async function initializeApp() {
 
   console.log("App is ready")
 
-  // DEV-ONLY: thinking-budget sweep. Runs after credentials are loaded (so the
-  // LIVE Gemini key is available — the .env key is billing-dead), prints the
-  // table + writes userData/thinking-budget-bench-results.json, then quits.
-  //   THINKING_BENCH=1 npm run electron:build
-  //   THINKING_BENCH=1 THINKING_BENCH_BUDGETS=0,256,512,1024 THINKING_BENCH_REPEATS=2 npm run electron:build
-  if (process.env.THINKING_BENCH === '1') {
-    (async () => {
-      try {
-        const llmHelper = appState.processingHelper?.getLLMHelper?.();
-        if (!llmHelper) { console.error('[ThinkingBudgetBench] LLMHelper unavailable'); app.quit(); return; }
-        const { runThinkingBudgetBench } = require('./services/dev/ThinkingBudgetBench');
-        const budgets = (process.env.THINKING_BENCH_BUDGETS || '0,128,512,1024,-1').split(',').map((s: string) => Number(s.trim()));
-        const repeats = Number(process.env.THINKING_BENCH_REPEATS || '1');
-        const model = process.env.THINKING_BENCH_MODEL || 'gemini-3.1-flash-lite';
-        // Give the embedding/provider init a moment to settle.
-        await new Promise(r => setTimeout(r, 2000));
-        await runThinkingBudgetBench(llmHelper, { budgets, repeats, model, log: (s: string) => console.log(s) });
-      } catch (e: any) {
-        console.error('[ThinkingBudgetBench] failed:', e?.message || e);
-      } finally {
-        console.log('[ThinkingBudgetBench] done — quitting.');
-        app.quit();
-      }
-    })();
-    return; // skip the rest of startup (no meeting/STT prewarm needed for the bench)
-  }
-
-  // DEV-ONLY: thinking MATRIX (budgets × levels) on a focused problem subset.
-  //   THINKING_MATRIX=1 THINKING_BENCH_MODEL=gemini-3.6-flash THINKING_BENCH_DATASET=$(pwd)/electron/services/dev/cf10.json npm run electron:build
-if (process.env.THINKING_MATRIX === '1') {
-    (async () => {
-      try {
-        const llmHelper = appState.processingHelper?.getLLMHelper?.();
-        if (!llmHelper) { console.error('[ThinkingMatrix] LLMHelper unavailable'); app.quit(); return; }
-        const { runThinkingMatrix } = require('./services/dev/ThinkingBudgetBench');
-        const model = process.env.THINKING_BENCH_MODEL || 'gemini-3.1-flash-lite';
-        const delayMs = Number(process.env.THINKING_BENCH_DELAY_MS || '500');
-        const configs = process.env.THINKING_MATRIX_CONFIGS || undefined;
-        await new Promise(r => setTimeout(r, 2000));
-        await runThinkingMatrix(llmHelper, { model, delayMs, configs, log: (s: string) => console.log(s) });
-      } catch (e: any) {
-        console.error('[ThinkingMatrix] failed:', e?.message || e);
-      } finally {
-        console.log('[ThinkingMatrix] done — quitting.');
-        app.quit();
-      }
-    })();
-    return;
-  }
-
   // PERF: pre-construct STT provider objects so the meeting-start critical
   // path doesn't pay for class init + listener wiring. Runs after all
   // credentials are loaded (so the provider can read its API key) and is
@@ -7282,30 +7203,6 @@ if (process.env.THINKING_MATRIX === '1') {
   // Pre-create detached overlay companion windows in background for faster first open
   appState.settingsWindowHelper.preloadWindow()
   appState.modelSelectorWindowHelper.preloadWindow()
-
-  // Restore Phone Mirror service if it was enabled in a previous session.
-  // Failure here is non-fatal — the user can re-enable from Settings.
-  //
-  // DIAGNOSTIC (2026-07-11): NATIVELY_DISABLE_PHONE_MIRROR=1 stops the PhoneMirror
-  // WebSocket server from ever starting. On the Windows repro, the launcher
-  // renderer's native RSS explodes (497→2008MB in ~4s, flat JS heap) within
-  // seconds of `[PhoneMirror] companion extension connected` — the same trigger
-  // in 3 separate logs. This flag lets the (frozen) user boot WITHOUT the WS
-  // server so the phone/companion extension can't connect. If the leak vanishes,
-  // PhoneMirror connect is confirmed as the trigger.
-  const disablePhoneMirrorOnBoot = process.env.NATIVELY_DISABLE_PHONE_MIRROR === '1';
-  if (
-    shouldStartPhoneMirrorOnBoot({
-      disablePhoneMirror: disablePhoneMirrorOnBoot,
-      phoneMirrorEnabled: !!SettingsManager.getInstance().get('phoneMirrorEnabled'),
-    })
-  ) {
-    PhoneMirrorService.getInstance()
-      .start({ exposeOnLan: !!SettingsManager.getInstance().get('phoneMirrorExposeOnLan'), persist: false })
-      .catch((err) => console.error('[Init] PhoneMirror auto-start failed:', err));
-  } else if (disablePhoneMirrorOnBoot) {
-    console.warn('[LeakTest] NATIVELY_DISABLE_PHONE_MIRROR=1 → PhoneMirror WS server NOT started this run');
-  }
 
   // One-time macOS screen recording permission prompt.
   //
@@ -7686,7 +7583,7 @@ if (process.env.THINKING_MATRIX === '1') {
     // remain by the time we return.
     //
     // ORDERING NOTE: this MUST happen before any subsequent napi-touching
-    // cleanup (cropper.dispose, ollama.stop, phoneMirror.dispose). Those
+    // cleanup (cropper.dispose, ollama.stop). Those
     // can spawn their own native threads or release napi resources, which
     // would race with our worker if it's still alive.
     if (process.platform === 'darwin') {
@@ -7729,11 +7626,6 @@ if (process.env.THINKING_MATRIX === '1') {
     } catch (e) {
       console.error('[main] Failed to stop audio test during shutdown:', e);
     }
-
-    // Tear down the Phone Mirror service so the OS port is freed cleanly.
-    PhoneMirrorService.getInstance().dispose().catch((err) =>
-      console.error('[Main] PhoneMirror dispose failed:', err)
-    );
 
     // Best-effort WAL checkpoint so a crash/force-quit followed by immediate
     // relaunch has less recovery work and fewer chances to trip over a large

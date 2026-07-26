@@ -2,7 +2,7 @@
 //
 // ROOT CAUSE this pins: SessionTracker is ONE shared instance across every
 // conversational surface (manual chat, What-to-Answer live suggestions,
-// screenshot-triggered code-hint/brainstorm, phone-mirror). A WTA answer
+// screenshot-triggered code-hint/brainstorm, meeting auto-answer). A WTA answer
 // written via addAssistantMessage(text, wd, 'what_to_answer') landed in the
 // SAME lastAssistantMessage/assistantResponseHistory that manual-chat's
 // follow-up-referent code read with NO surface filter — so an anaphoric
@@ -72,10 +72,10 @@ describe('SessionTracker surface isolation (Phase 9)', () => {
 
   test('a surface with no turns yet returns null, never a different surface\'s answer', () => {
     const s = freshTracker();
-    s.addAssistantMessage('Only a phone-mirror answer has been written so far in this session.', undefined, 'phone_mirror');
+    s.addAssistantMessage('Only a meeting auto-answer has been written so far in this session.', undefined, 'meeting_auto_answer');
     assert.equal(s.getLastAssistantMessage('manual_chat'), null);
     assert.equal(s.getLastAssistantMessage('what_to_answer'), null);
-    assert.equal(s.getLastAssistantMessage('phone_mirror'), 'Only a phone-mirror answer has been written so far in this session.');
+    assert.equal(s.getLastAssistantMessage('meeting_auto_answer'), 'Only a meeting auto-answer has been written so far in this session.');
   });
 
   test('getAssistantResponseHistory(surface) filters to exactly that surface\'s turns, in order', () => {

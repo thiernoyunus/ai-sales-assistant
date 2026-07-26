@@ -314,8 +314,6 @@ export interface ElectronAPI {
   getMeetingDetails: (id: string) => Promise<any>
   searchGlobalMeetings: (query: string, filters?: any) => Promise<{ enabled: boolean; results: any[] }>
   searchInMeeting: (query: string) => Promise<{ enabled: boolean; results: any[] }>
-  generateLectureNotes: (opts?: { title?: string; course?: string }) => Promise<{ enabled: boolean; notes: any }>
-  generateDiagram: (text?: string) => Promise<{ enabled: boolean; diagram: any }>
   getIntelligenceFlags: () => Promise<Array<{ key: string; enabled: boolean; setting: string; env: string; default: boolean }>>
   setIntelligenceFlag: (key: string, value: boolean | null) => Promise<{ success: boolean; enabled?: boolean; error?: string }>
   getHindsightConfig: () => Promise<{ baseUrl: string; hasApiKey: boolean; autoStart: boolean; serverCommand: string; llmProvider: string; available: boolean; mode: 'local' | 'cloud'; synthetic: boolean; explicitlyDisabled: boolean; authFailed: boolean }>
@@ -485,11 +483,6 @@ export interface ElectronAPI {
   onRAGStreamComplete: (callback: (data: { meetingId?: string; global?: boolean }) => void) => () => void
   onRAGStreamError: (callback: (data: { meetingId?: string; global?: boolean; error: string }) => void) => () => void
 
-  // Donation API
-  getDonationStatus: () => Promise<{ shouldShow: boolean; hasDonated: boolean; lifetimeShows: number }>;
-  markDonationToastShown: () => Promise<{ success: boolean }>;
-  setDonationComplete: () => Promise<{ success: boolean }>;
-
   // Keybind Management
   getKeybinds: () => Promise<Array<{ id: string; label: string; accelerator: string; isGlobal: boolean; defaultAccelerator: string }>>
   setKeybind: (id: string, accelerator: string) => Promise<boolean>
@@ -633,20 +626,6 @@ export interface ElectronAPI {
   ) => Promise<UploadSkillOutcome>;
   skillsPreview: (payload: SkillUploadPayload) => Promise<UploadSkillOutcome>;
 
-  // Phone Mirror
-  phoneMirrorGetInfo: () => Promise<PhoneMirrorInfo>;
-  phoneMirrorEnable: (exposeOnLan: boolean) => Promise<PhoneMirrorInfo | { error: string }>;
-  phoneMirrorDisable: () => Promise<{ success: true }>;
-  phoneMirrorSetLan: (exposeOnLan: boolean) => Promise<PhoneMirrorInfo | { error: string }>;
-  phoneMirrorRotateToken: () => Promise<PhoneMirrorInfo | { error: string }>;
-  // Arm the 60s one-click pairing window for the companion browser extension.
-  phoneMirrorArmExtension: () => Promise<{ armedMs: number } | { error: string }>;
-  phoneMirrorListTabs: () => Promise<{ tabs: Array<{ id: number; title: string; url: string }>; error?: string }>;
-  phoneMirrorCaptureTab: (tabId: number) => Promise<{ ok: boolean; reason?: string }>;
-  // Smart Browser Context v2 — pre-answer auto-context pull. Resolves attached:true
-  // when a coding page was auto-attached (arrives via onDomContextReceived), else
-  // attached:false (answer proceeds without browser context).
-  phoneMirrorRequestAutoContext: () => Promise<{ attached: boolean; reason?: string; category?: string }>;
   // Smart Browser Context v2 — auto-capture settings.
   browserContextGetSettings: () => Promise<BrowserContextSettings | { error: string }>;
   browserContextSetSettings: (
@@ -660,10 +639,6 @@ export interface ElectronAPI {
       browserExperimentalFullPageCapture: boolean;
     }>,
   ) => Promise<BrowserContextSettings | { error: string }>;
-  onPhoneMirrorStatus: (callback: (info: PhoneMirrorInfo) => void) => () => void;
-  onPhoneMirrorIncomingChat: (
-    callback: (data: { message: string; streamId: string }) => void,
-  ) => () => void;
   onDomContextReceived: (
     callback: (dom: string, meta?: DomCaptureMeta, envelope?: ContextEnvelope) => void,
   ) => () => void;
@@ -671,7 +646,7 @@ export interface ElectronAPI {
 
 /**
  * Metadata sent by the companion extension with a captured page; drives the
- * optional "Page context" chip. Mirrors DomCaptureMeta in PhoneMirrorService.
+ * optional "Page context" chip.
  */
 export interface DomCaptureMeta {
   title?: string;
@@ -861,25 +836,6 @@ export type UploadSkillOutcome =
 // (The `failed` branch carries an optional `preview` when validation
 // succeeded but install failed, so the renderer can keep showing the
 // preview card alongside the install-time error message.)
-
-export interface PhoneMirrorInfo {
-  running: boolean;
-  enabled: boolean;
-  exposeOnLan: boolean;
-  port: number;
-  loopbackUrl: string | null;
-  primaryUrl: string | null;
-  lanUrls: string[];
-  /** Phone (LAN) token — embedded in the QR/pairing URL. Not the extension token. */
-  token: string | null;
-  /** Loopback-scoped extension token — used for the manual `port:extToken` pairing string. */
-  extToken: string | null;
-  qrDataUrl: string | null;
-  clients: number;
-  extensionConnected: boolean;
-  /** Resolved bind host — '127.0.0.1' for loopback-only, '0.0.0.0' when LAN-exposed. */
-  bindAddress: string;
-}
 
 declare global {
   interface Window {

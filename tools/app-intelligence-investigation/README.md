@@ -1,6 +1,6 @@
 # App Intelligence Investigation Tools
 
-This directory contains **read-only** investigation scripts for the **current** state of the Natively app's intelligence subsystem. They complement (and sit one level above) `tools/profile-intelligence-investigation/`, which focused narrowly on Profile Intelligence. The scripts here aim at the *whole app's* intelligence loop:
+This directory contains **read-only** investigation scripts for the **current** state of the Natively app's intelligence subsystem. The scripts here aim at the *whole app's* intelligence loop:
 
 * manual chat
 * "What to Answer"
