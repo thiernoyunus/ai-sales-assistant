@@ -30,6 +30,46 @@ It needs Electron's runtime — under plain `node --test`, `DatabaseManager.db` 
 npm run build:electron && ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron --test electron/db/__tests__/ModeTemplateCollapseV26.test.mjs
 ```
 
+### OPEN ISSUE — the full suite does not terminate
+
+**Status: under investigation. Do not read a stalled suite as "tests failing".**
+
+`npm test` reaches ~155 KB of output with **0 failures**, then hangs indefinitely (observed 32–38 min before being killed, twice). Seven files are still resident at that point:
+
+```
+electron/llm/__tests__/IntentClassifierStackWordBoundary2026_07_19.test.mjs
+electron/rag/__tests__/LocalEmbeddingProviderRealModel.test.mjs      <- loads a real ML model
+electron/rag/__tests__/LocalRerankerModel.test.mjs                   <- loads a real ML model
+electron/services/__tests__/IntelligenceEngineCandidateSanitizerFallback.test.mjs
+electron/services/__tests__/IntelligenceEngineFalseNoContentClaim.test.mjs
+electron/services/__tests__/IntelligenceEngineJsonEnvelopeRecovery.test.mjs
+electron/services/__tests__/IntelligenceEnginePlanner.test.mjs
+```
+
+Running `IntelligenceEnginePlanner.test.mjs` alone is decisive:
+
+```
+ℹ tests 6   ℹ pass 5   ℹ fail 0   ℹ cancelled 1
+✖ electron/services/__tests__/IntelligenceEnginePlanner.test.mjs
+  'Promise resolution is still pending but the event loop has already resolved'
+```
+
+**Every assertion passes.** The *file* is cancelled because something leaves an unsettled promise / open handle so the process never exits. `--test-timeout` does not rescue it — that bounds individual tests, not a process kept alive after they finish.
+
+Suite outcomes by commit:
+
+| Commit | Result |
+|---|---|
+| `dbead21` gitlink fix only | exit 0, green |
+| `16d42cd` code-verification removal | exit 0, green |
+| `f0e108b` vision removal | stalled |
+
+That ordering *suggests* the vision removal, but `f0e108b` does not touch `IntelligenceEngine.ts` at all — of the hanging files it only touches `ScreenContextService.ts`, and only to *reduce* it to a type (dropping its `ScreenshotHelper` and `OcrProviderManager` imports, i.e. removing side effects rather than adding any). So the correlation is unexplained and may be coincidental — the two green runs could simply have been lucky, since a hang like this can depend on timing and parallelism.
+
+**A worktree at `16d42cd` is being built to test the same file at the known-green commit.** That answers "is this a regression I introduced, or pre-existing?" — settle it before trusting or dismissing the suite. If it hangs there too, this is pre-existing and unrelated to the scope work.
+
+Note the two `RealModel` RAG tests load actual ML models and are a plausible independent hang source (network / model download).
+
 ### Gotcha that cost time twice
 
 Do not write `until ! pgrep -f "node --test"; do sleep 15; done`. `pgrep -f` matches the wait loop's **own** command line, so it never exits and looks exactly like a hung test suite. Use the background-task completion notification instead, or match on a pattern that cannot appear in your own process.
