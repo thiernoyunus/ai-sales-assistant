@@ -982,18 +982,6 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
   const [activeModeLabel, setActiveModeLabel] = useState<string | null>(null);
   const [llmProviderLabel, setLlmProviderLabel] = useState<string>('unknown');
   const [llmPrivacyLabel, setLlmPrivacyLabel] = useState<string | null>(null);
-  const [screenContextStatus, setScreenContextStatus] = useState<
-    'not_available' | 'available' | 'failed'
-  >('not_available');
-  const [latestUsedImageInput, setLatestUsedImageInput] = useState(false);
-  // Vision-first provenance — populated from the generateWhatToSay response.
-  const [latestVisionProviderUsed, setLatestVisionProviderUsed] = useState<string | undefined>(
-    undefined,
-  );
-  const [latestVisionModelUsed, setLatestVisionModelUsed] = useState<string | undefined>(undefined);
-  const [latestVisionFailureReason, setLatestVisionFailureReason] = useState<string | undefined>(
-    undefined,
-  );
 
   useEffect(() => {
     // Load initial active mode name
@@ -3412,11 +3400,6 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
         currentAttachments.length > 0 ? currentAttachments.map((s) => s.path) : undefined,
         options,
       );
-      setScreenContextStatus(result.screenContextStatus || 'not_available');
-      setLatestUsedImageInput(Boolean(result.usedImageInput));
-      setLatestVisionProviderUsed(result.visionProviderUsed);
-      setLatestVisionModelUsed(result.visionModelUsed);
-      setLatestVisionFailureReason(result.visionFailureReason);
       if (result.answer == null) {
         const feedback =
           result.error ??
@@ -5447,12 +5430,6 @@ Provide only the answer, nothing else.`;
     (sttSummary.tone === 'error' && !audioFailureBannerActive) ||
     sttUserStatus === 'reconnecting' ||
     sttInterviewerStatus === 'reconnecting';
-  // Whether the vision chip will render (mirrors the IIFE's early-return guard).
-  const visionPillFailed = screenContextStatus === 'failed' || !!latestVisionFailureReason;
-  const visionPillSucceeded =
-    (latestUsedImageInput || screenContextStatus === 'available') && !visionPillFailed;
-  // Suppressed: vision pill ("Vision: provider") is not required in the UI.
-  const showVisionPill = false;
   // Gate the whole status-pill row on having at least one pill. Otherwise the
   // empty row still reserved pt-3+pb-1, leaving a visible gap above the rolling
   // transcript on launch (no mode yet, STT pill suppressed, no vision/llm).

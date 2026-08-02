@@ -250,12 +250,6 @@ export interface ElectronAPI {
     answer: string | null;
     question?: string;
     error?: string;
-    /** Vision pipeline outcome — replaces legacy screenContextStatus/ocrTextLength fields */
-    screenContextStatus?: 'not_available' | 'available' | 'failed';
-    visionProviderUsed?: string;
-    visionModelUsed?: string;
-    visionAttempts?: number;
-    visionFailureReason?: 'no_vision_provider' | 'all_vision_failed' | 'privacy_blocked' | 'scope_blocked' | 'provider_timeout';
     imageCount?: number;
     usedImageInput?: boolean;
   }>

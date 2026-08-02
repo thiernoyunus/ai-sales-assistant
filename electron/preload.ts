@@ -383,7 +383,6 @@ interface ElectronAPI {
     answer: string | null;
     question?: string;
     error?: string;
-    screenContextStatus?: 'not_available' | 'available' | 'failed';
     ocrTextLength?: number;
     imageCount?: number;
     usedImageInput?: boolean;

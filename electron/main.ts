@@ -1120,15 +1120,6 @@ export class AppState {
   private view: "queue" | "solutions" = "queue"
   private isUndetectable: boolean = false
 
-  private problemInfo: {
-    problem_statement: string
-    input_format: Record<string, any>
-    output_format: Record<string, any>
-    constraints: Array<Record<string, any>>
-    test_cases: Array<Record<string, any>>
-  } | null = null // Allow null
-
-  private hasDebugged: boolean = false
   private isMeetingActive: boolean = false; // Guard for session state leaks
   private _meetingGeneration = 0;
   private _audioInitPromise: Promise<void> | null = null;
@@ -5807,18 +5798,6 @@ export class AppState {
     return this.windowHelper.isVisible()
   }
 
-  public getScreenshotHelper(): ScreenshotHelper {
-    return this.screenshotHelper
-  }
-
-  public getProblemInfo(): any {
-    return this.problemInfo
-  }
-
-  public setProblemInfo(problemInfo: any): void {
-    this.problemInfo = problemInfo
-  }
-
   public getScreenshotQueue(): string[] {
     return this.screenshotHelper.getScreenshotQueue()
   }
@@ -5892,9 +5871,6 @@ export class AppState {
 
   public clearQueues(): void {
     this.screenshotHelper.clearQueues()
-
-    // Clear problem info
-    this.problemInfo = null
 
     // Reset view to initial state
     this.setView("queue")
@@ -6222,14 +6198,6 @@ export class AppState {
       this.tray.destroy();
       this.tray = null;
     }
-  }
-
-  public setHasDebugged(value: boolean): void {
-    this.hasDebugged = value
-  }
-
-  public getHasDebugged(): boolean {
-    return this.hasDebugged
   }
 
   public setUndetectable(state: boolean): void {
