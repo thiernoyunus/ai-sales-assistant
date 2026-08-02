@@ -114,9 +114,7 @@ const DIAGRAM_RE = /\b(diagram|flow ?chart|sequence diagram|state (machine|diagr
 const LECTURE_RECALL_RE = /\b(which lecture|last lecture|previous lecture|across (all )?lectures|course (memory|so far)|revision (plan|notes|checklist)|flash ?cards?|exam questions?|what did we cover|weak (concepts?|topics?))\b/i;
 
 // Mode template ids planAnswer/decideProfileIntelligence accept as a routing prior.
-const MODE_TEMPLATE_TYPES = new Set([
-  'general', 'looking-for-work', 'sales', 'recruiting', 'team-meet', 'lecture', 'technical-interview',
-]);
+const MODE_TEMPLATE_TYPES = new Set(['general', 'sales']);
 
 /** Normalize a mode-id string into the ActiveModeInfo planAnswer expects (or null). */
 function toActiveModeInfo(mode?: string): ActiveModeInfo | null {
@@ -148,7 +146,7 @@ function answerContractFor(answerType: AnswerType, templateType?: string): Answe
     case 'lecture_answer':
       return 'lecture_notes';
     case 'general_meeting_answer':
-      return templateType === 'team-meet' ? 'team_meeting_summary' : 'general_assistant';
+      return 'general_assistant';
     case 'identity_answer':
     case 'profile_fact_answer':
     case 'skills_answer':
@@ -157,8 +155,7 @@ function answerContractFor(answerType: AnswerType, templateType?: string): Answe
     // A follow-up to a profile/interview answer inherits the detailed-interview
     // contract; a follow-up in a non-interview mode falls to general below.
     case 'follow_up_answer':
-      return templateType === 'technical-interview' || templateType === 'looking-for-work'
-        ? 'interview_detailed' : 'general_assistant';
+      return 'general_assistant';
     case 'project_answer':
     case 'project_followup_answer':
     case 'experience_answer':
@@ -314,8 +311,12 @@ export function routeContext(
     answerType === 'resume_jd_gap_answer' ||
     answerType === 'source_code_evidence_answer';
 
-  // LECTURE / DIAGRAM (Phase 6 V2): only meaningful in lecture mode.
-  const lectureMode = activeModeInfo?.templateType === 'lecture' || answerType === 'lecture_answer';
+  // Document-grounded answering. The `templateType === 'lecture'` half of this
+  // gate is gone with the lecture mode; the answerType half stays because
+  // lecture_answer is still the file-grounded answer type that makes "answer
+  // from the product PDF" work for sales. Phase 4 renames the answer type and
+  // reroutes this properly — do not delete the branch in the meantime.
+  const lectureMode = answerType === 'lecture_answer';
   // Diagram intelligence: an explicit diagram-worthy ask in a lecture context.
   const useDiagramIntelligence = DIAGRAM_RE.test(input.userQuery) && lectureMode;
   // Lecture memory: cross-lecture/course recall asks ("which lecture mentioned X",

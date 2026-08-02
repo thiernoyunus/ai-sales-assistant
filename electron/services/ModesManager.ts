@@ -34,14 +34,8 @@ function dropSensitiveCustomContext(raw: string, answerType: AnswerType = 'gener
 }
 import {
     MODE_GENERAL_PROMPT,
-    MODE_LOOKING_FOR_WORK_PROMPT,
     MODE_SALES_PROMPT,
-    MODE_RECRUITING_PROMPT,
-    MODE_TEAM_MEET_PROMPT,
-    MODE_LECTURE_PROMPT,
-    MODE_TECHNICAL_INTERVIEW_PROMPT,
     // Campaign-3 (2026-07-19): 8th built-in mode prompt.
-    MODE_SEMINAR_PROMPT,
     SHARED_MODE_PREFIX,
     SHARED_MODE_PREFIX_SHORT,
 } from '../llm/prompts';
@@ -53,18 +47,19 @@ import {
  */
 export const PROFILE_OKF_RESERVED_MODE_ID = '__profile_okf__';
 
-export type ModeTemplateType =
-    | 'general'
-    | 'looking-for-work'
-    | 'sales'
-    | 'recruiting'
-    | 'team-meet'
-    | 'lecture'
-    | 'technical-interview'
-    // Campaign-3 (fix/answer-policy-engine, 2026-07-19): 8th built-in mode.
-    // Strict: evidence required, off-document Qs answered general-labeled
-    // with a visible "not from your reference files" preamble.
-    | 'seminar';
+/**
+ * Re-exported from llm/modeProfiles, which is the single declaration site.
+ * It lives in the leaf llm/ layer because services/ imports from llm/ and not
+ * the reverse. Kept exported here so the many existing
+ * `import { ModeTemplateType } from '../services/ModesManager'` call sites
+ * keep working.
+ *
+ * Retired values ('looking-for-work', 'recruiting', 'team-meet', 'lecture',
+ * 'technical-interview', 'seminar') still exist in old databases —
+ * DatabaseManager migration v26 remaps those rows to 'general' on load.
+ */
+import type { ModeTemplateType } from '../llm/modeProfiles';
+export type { ModeTemplateType };
 
 export interface Mode {
     id: string;
@@ -114,17 +109,6 @@ export const MODE_TEMPLATES: Array<{
 }> = [
     { type: 'general',              label: 'General',              description: 'Universal adaptive copilot for any meeting or conversation.' },
     { type: 'sales',                label: 'Sales',                description: 'Close deals with strategic discovery and objection handling.' },
-    { type: 'recruiting',           label: 'Recruiting',           description: 'Evaluate candidates with structured interview insights.' },
-    { type: 'team-meet',            label: 'Team Meet',            description: 'Track action items and key decisions from meetings.' },
-    { type: 'looking-for-work',     label: 'Looking for work',     description: 'Answer interview questions with confidence and clarity.' },
-    { type: 'technical-interview',  label: 'Technical Interview',  description: 'Whiteboard-style coding and system design support.' },
-    { type: 'lecture',              label: 'Lecture',              description: 'Capture key concepts and content from lectures.' },
-    // Campaign-3 (2026-07-19, fix/answer-policy-engine): 8th built-in mode.
-    // "Seminar Mode" — strict file-grounded Q&A for presentations, thesis
-    // defenses, paper walkthroughs. Off-document questions are answered
-    // general-labeled with a visible "not from your reference files" preamble
-    // (NEVER a refusal — even strict profiles answer; they just label honestly).
-    { type: 'seminar',              label: 'Seminar',              description: 'Strict file-grounded Q&A: answer from your reference files; off-file questions get a visible "general knowledge" label, never a refusal.' },
 ];
 
 // Default note sections seeded when a mode is created from a template
@@ -137,14 +121,6 @@ export const TEMPLATE_NOTE_SECTIONS: Record<ModeTemplateType, Array<{ title: str
         { title: 'Risks / blockers', description: 'Blockers, dependencies, privacy concerns, timeline risks, or unresolved constraints.' },
         { title: 'Notes', description: 'Useful supporting context that does not fit a stronger outcome section.' },
     ],
-    'team-meet': [
-        { title: 'Progress since last sync', description: 'Team member progress, shipped work, changed status, and notable updates.' },
-        { title: 'Decisions', description: 'Decisions and agreements reached by the team.' },
-        { title: 'Owners and next steps', description: 'Concrete next steps, owners, dependencies, and deadlines if stated.' },
-        { title: 'Blockers', description: 'Anything blocked, delayed, at risk, or requiring escalation.' },
-        { title: 'Dependencies', description: 'Cross-team handoffs, external dependencies, or sequencing constraints.' },
-        { title: 'Follow-up needed', description: 'Follow-ups that should happen after the meeting even if not assigned.' },
-    ],
     sales: [
         { title: 'Account context', description: 'Company, stakeholders, use case, team size, current workflow, and business context.' },
         { title: 'Pain points', description: 'Customer pain, needs, current gaps, and why the problem matters.' },
@@ -154,69 +130,14 @@ export const TEMPLATE_NOTE_SECTIONS: Record<ModeTemplateType, Array<{ title: str
         { title: 'Next steps', description: 'Specific sales follow-ups, owners, deadlines, and promised materials.' },
         { title: 'Follow-up email', description: 'Facts that should be included in a concise customer follow-up email.' },
     ],
-    recruiting: [
-        { title: 'Candidate profile', description: 'Candidate background, experience, current role, motivations, and logistics.' },
-        { title: 'Role fit', description: 'Evidence for or against fit with the role, team, and level.' },
-        { title: 'Strengths', description: 'Concrete strengths shown in answers or experience.' },
-        { title: 'Concerns', description: 'Risks, gaps, inconsistencies, or follow-up areas.' },
-        { title: 'Compensation / logistics', description: 'Compensation, notice period, availability, location, visa, timeline, or constraints.' },
-        { title: 'Next steps', description: 'Recruiting follow-ups, owners, deadlines, next interview stage, or materials.' },
-        { title: 'Follow-up draft', description: 'Information that should appear in the recruiter or candidate follow-up.' },
-    ],
-    'technical-interview': [
-        { title: 'Problem discussed', description: 'Problem statement, constraints, clarifications, and target outcome.' },
-        { title: 'Approach', description: 'Candidate approach, algorithm, system design, alternatives, and tradeoffs.' },
-        { title: 'Correctness', description: 'Correctness reasoning, edge cases, bugs found, or unresolved correctness issues.' },
-        { title: 'Complexity', description: 'Time/space complexity, scaling assumptions, and performance tradeoffs.' },
-        { title: 'Code quality', description: 'Implementation quality, readability, structure, testing, and maintainability.' },
-        { title: 'Communication', description: 'How clearly the candidate explained reasoning and handled feedback.' },
-        { title: 'Strengths', description: 'Concrete positive signals from the interview.' },
-        { title: 'Weaknesses', description: 'Concrete gaps, missed cases, or areas to improve.' },
-        { title: 'Hiring signal', description: 'Overall hire/no-hire signal and evidence; avoid inventing a final decision.' },
-        { title: 'Follow-up', description: 'Next steps, additional questions, take-home, or interviewer follow-up.' },
-    ],
-    lecture: [
-        { title: 'Core concepts', description: 'Main concepts, frameworks, and claims from the lecture.' },
-        { title: 'Definitions', description: 'Terms, definitions, formulas, and distinctions introduced.' },
-        { title: 'Examples', description: 'Concrete examples, analogies, demonstrations, or case studies.' },
-        { title: 'Formulas / steps', description: 'Procedures, equations, workflows, or step-by-step methods.' },
-        { title: 'Things to memorize', description: 'Facts, definitions, formulas, or lists that should be memorized.' },
-        { title: 'Confusing points', description: 'Ambiguous or confusing ideas that need review.' },
-        { title: 'Questions to review', description: 'Open questions, exam prep prompts, or self-study questions.' },
-        { title: 'Study summary', description: 'Concise study-focused recap of what matters most.' },
-    ],
-    'looking-for-work': [
-        { title: 'Opportunity summary', description: 'Company, role, team, interview stage, and opportunity context.' },
-        { title: 'Company / role details', description: 'Role responsibilities, compensation, logistics, process, and requirements.' },
-        { title: 'Fit signals', description: 'Evidence that my experience or preferences fit the opportunity.' },
-        { title: 'Concerns', description: 'Risks, gaps, objections, or areas to prepare for.' },
-        { title: 'Referral / follow-up', description: 'Referral requests, thank-you notes, materials to send, or networking follow-up.' },
-        { title: 'Next steps', description: 'Concrete next steps, owners, dates, and preparation items.' },
-    ],
-    // Campaign-3 (2026-07-19): 8th built-in mode — file-grounded Q&A.
-    seminar: [
-        { title: 'Question', description: 'The question asked (verbatim or paraphrased).' },
-        { title: 'Answer from your files', description: 'The answer grounded in your reference files / slides / paper. Direct quote or close paraphrase.' },
-        { title: 'Source', description: 'Which file + section the answer came from. Cite the filename and section/heading.' },
-        { title: 'If not in your files', description: 'A short, labeled "not from your reference files" note from general knowledge — never fabricated as if from the files.' },
-        { title: 'Follow-up you might be asked', description: 'Likely follow-up questions on the same topic the audience or panel could ask next.' },
-    ],
 };
 
 // Campaign-3 (2026-07-19): exported (was `const`) so tests + future UI
 // debugging can verify which prompt each templateType resolves to.
 export const TEMPLATE_SYSTEM_PROMPTS: Record<ModeTemplateType, string> = {
-    // General = universal adaptive copilot (own prompt, not technical interview)
+    // General = universal adaptive copilot
     general: MODE_GENERAL_PROMPT,
-    'technical-interview': MODE_TECHNICAL_INTERVIEW_PROMPT,
-
-    'looking-for-work': MODE_LOOKING_FOR_WORK_PROMPT,
     sales: MODE_SALES_PROMPT,
-    recruiting: MODE_RECRUITING_PROMPT,
-    'team-meet': MODE_TEAM_MEET_PROMPT,
-    lecture: MODE_LECTURE_PROMPT,
-    // Campaign-3 (2026-07-19): 8th built-in mode — file-grounded Q&A.
-    seminar: MODE_SEMINAR_PROMPT,
 };
 
 // Startup invariant: every MODE_*_PROMPT must begin with one of the two shared
@@ -456,12 +377,11 @@ export class ModesManager {
     // utterance regardless of the active mode. The fix also closes two sibling
     // vectors of the same bug class — the intro-question shortcut and the
     // premium prompt/context injection — by gating the whole intercept here.
-    private static readonly PREMIUM_INTERCEPT_INCOMPATIBLE_TEMPLATES: ReadonlySet<ModeTemplateType> = new Set([
-        'technical-interview',
-        'team-meet',
-        'lecture',
-        'seminar',
-    ]);
+    // Every template that was listed here (technical-interview, team-meet,
+    // lecture, seminar) has been retired. Neither surviving mode suppresses the
+    // premium intercept, so this is empty rather than deleted — the gate below
+    // stays in place for whatever modes get added next.
+    private static readonly PREMIUM_INTERCEPT_INCOMPATIBLE_TEMPLATES: ReadonlySet<ModeTemplateType> = new Set([]);
 
     /**
      * True when the premium knowledge intercept (negotiation coaching, intro
@@ -582,10 +502,12 @@ export class ModesManager {
         switches: string[];
         hasLiveTranscriptCapable?: boolean;
     }): ModeSourceContract {
-        const isInterviewPrep = input.templateType === 'looking-for-work'
-            || input.templateType === 'technical-interview';
+        // Previously 'looking-for-work' / 'technical-interview' defaulted to a
+        // profile-owned contract. Both are retired, so every surviving mode is
+        // reference-file owned — which is what sales wants anyway (battlecards,
+        // pricing sheets, case studies).
         const switches = input.switches.filter((s) => s !== 'transcript');
-        const defaultOwner: ModeSourceOwner = isInterviewPrep ? 'profile' : 'reference_files';
+        const defaultOwner: ModeSourceOwner = 'reference_files';
         return buildUserSelectedSourceContract({
             defaultOwner,
             allowedExplicitSwitches: switches as any,
