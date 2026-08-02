@@ -14,8 +14,20 @@ This file is the pick-up point. If you are new to this work, read this first, th
 | 1 — clean deletions | done |
 | 2 — shimmed deletions | **done, ~8,600 lines removed** |
 | 3 — mode collapse | **code complete** — migration, enum, mirrors, validators, tests, prompts all done; full suite confirming |
-| 4 — answer-type narrowing | not started |
-| 5 — docs, tests, branding | not started |
+| 4 — answer-type narrowing | **partly done** — safety route reframed; the rest is blocked on Profile Intelligence (see below) |
+| 5 — docs, tests, branding | **mostly done** — README + ROADMAP rewritten; test prune remains |
+
+## START HERE — the next three things, in order
+
+**1. Delete Profile Intelligence.** This is the gate for the rest of Phase 4. The full map is in "Profile Intelligence deletion map" below — read it, it contains five classes of failure the compiler cannot catch. Biggest surprises: the actual résumé/JD engine lives in the private `premium/` submodule (not this repo), there are **two** independent profile vocabularies, and two bare `require()` calls sit inside `try/catch` blocks that would swallow the resulting `MODULE_NOT_FOUND` silently.
+
+**2. Then narrow `AnswerType`** (38 → ~15), then remove `resume`/`jd`/`negotiation` from `ContextLayer`. In that order — see the sequencing section. Keep the `document_*` / `definitional` / `list` / `exact_numeric` types: they are what make "answer from the product PDF" work for sales.
+
+**3. Then prune the tests.** ~160–180 files retire. The plan warns about the ~69 sales-referencing tests: many assert the *absence* of résumé/JD leakage, so they depend on the interview vocabulary existing. Rewrite those assertions rather than deleting the tests.
+
+### CORRECTION — Hindsight is NOT removed
+
+Earlier notes in this file implied Hindsight was done. **It is not.** `HindsightManager.ts` and its UI banner are still present and wired through `MeetingPersistence.ts` and `main.ts`. The plan decided to cut it (§2.1b) and the README no longer markets it, but **the code is still there**. Same for stealth/process-disguise: `main.ts` disguise-mode code and `assets/fakeicon/` still exist. The README keeps "invisible during screen share" (legitimate, and the plan endorses keeping it) but no longer markets Terminal-disguise. Both are listed under "Under review" in ROADMAP.md so they do not get lost.
 
 ### Verification status — read this before trusting anything below
 
@@ -261,7 +273,9 @@ The plan treats Phase 4 as "narrow `AnswerType` from 38 members". **You cannot s
 
 **Do NOT remove with the interview types** (plan trap #2): `lecture_answer`, `definitional_answer`, `list_answer`, `exact_numeric_answer`, `document_structure_answer`, `document_followup_answer`. Sales modes default to `reference_files_primary`, and these are exactly what makes "answer from the product PDF / battlecard / pricing sheet" work. `lecture_answer` wants renaming, not deleting.
 
-**Rewrite, do not drop** (trap #3): `ethical_usage_answer` is written in proctoring-evasion language but is a **safety route**. It needs sales framing — recording consent, honesty about being on a call.
+**Trap #3 — DONE** (`797eb16`). `ethical_usage_answer` is reframed for sales: concealment from a prospect/customer, plus recording consent and the jurisdiction caveat. `STEALTH_OBJECT_RE` gained `prospect|client|customer|buyer|the other side` and **nothing was removed from it** — its own comment says a missed stealth ask reaches the generic LLM with no decline contract, so over-coverage is deliberate. Do not "tidy" that regex.
+
+**Trap #4 — still open:** `product_candidate_mix_answer` either folds into `sales_answer` or gets re-derived without the résumé dependency.
 
 `product_candidate_mix_answer` (trap #4) either folds into `sales_answer` or gets re-derived without the résumé dependency.
 
