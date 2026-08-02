@@ -46,11 +46,9 @@ describe('HUMAN_SPOKEN_ANSWER_CONTRACT — content', () => {
 
 describe('spoken candidate/seller modes COMPOSE the contract', () => {
   const SPOKEN = [
-    'MODE_LOOKING_FOR_WORK_PROMPT',
     'WHAT_TO_ANSWER_PROMPT',
     'ANSWER_MODE_PROMPT',
     'MODE_SALES_PROMPT',
-    'MODE_TECHNICAL_INTERVIEW_PROMPT',
     'GROQ_SYSTEM_PROMPT',
     'GROQ_WHAT_TO_ANSWER_PROMPT',
     'CUSTOM_SYSTEM_PROMPT',
@@ -66,12 +64,10 @@ describe('spoken candidate/seller modes COMPOSE the contract', () => {
 });
 
 describe('non-spoken / structured surfaces do NOT compose the contract', () => {
-  // Lecture, recap, summary-JSON, follow-up-questions, and email surfaces must keep
+  // General, recap, summary-JSON, follow-up-questions, and email surfaces must keep
   // their own structure and must not inherit the spoken-voice ban.
   const NON_SPOKEN = [
-    'MODE_LECTURE_PROMPT',
-    'MODE_RECRUITING_PROMPT',     // third-person observer, not the candidate's voice
-    'MODE_TEAM_MEET_PROMPT',      // capture format
+    'MODE_GENERAL_PROMPT',        // adaptive copilot voice, not the spoken candidate/seller contract
     'FOLLOW_UP_QUESTIONS_MODE_PROMPT',
     'GROQ_RECAP_PROMPT',
     'GROQ_SUMMARY_JSON_PROMPT',
@@ -88,11 +84,12 @@ describe('non-spoken / structured surfaces do NOT compose the contract', () => {
 
 describe('mode-prefix dedup invariant is preserved (no token-doubling regression)', () => {
   // The contract was injected AFTER the shared prefix, so the dedup startsWith() check
-  // must still hold for every mode template.
+  // must still hold for every mode template that carries the contract.
+  // (MODE_GENERAL_PROMPT is excluded — it doesn't compose the contract at all,
+  // see the NON_SPOKEN check above, so "carries the contract exactly once"
+  // does not apply to it.)
   const COMPOSED = {
-    'looking-for-work': prompts.MODE_LOOKING_FOR_WORK_PROMPT,
     sales: prompts.MODE_SALES_PROMPT,
-    'technical-interview': prompts.MODE_TECHNICAL_INTERVIEW_PROMPT,
   };
   for (const [mode, p] of Object.entries(COMPOSED)) {
     test(`${mode} still starts with a shared prefix`, () => {

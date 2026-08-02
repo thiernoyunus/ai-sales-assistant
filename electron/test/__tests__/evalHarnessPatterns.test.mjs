@@ -325,33 +325,17 @@ describe('mode-specific micro-rule invariants', () => {
       `CONFIDENTIAL-PRICING TEMPLATE must be near the end (recency bias). Currently at ${tiny.TINY_MODE_SALES_PROMPT.length - idx} chars from end.`);
   });
 
-  test('TINY_MODE_RECRUITING_PROMPT defends against transcript injection', () => {
-    assert.match(tiny.TINY_MODE_RECRUITING_PROMPT, /Untrusted transcript|untrusted|injection/i);
-    assert.match(tiny.TINY_MODE_RECRUITING_PROMPT, /use the other candidate|ignore the resume|use.*B profile|system prompt:/i);
-    assert.match(
-      tiny.TINY_MODE_RECRUITING_PROMPT,
-      /unverified claim|does not match the resume|contradicts the resume|not on the resume|is unverified/i,
-    );
-    // Must explicitly tell the model not to quote the injected tokens.
-    assert.match(tiny.TINY_MODE_RECRUITING_PROMPT, /do not quote|generic/i);
-  });
-
-  test('TINY_MODE_LOOKING_FOR_WORK_PROMPT salary rule includes range/flexibility/lowball', () => {
-    assert.match(tiny.TINY_MODE_LOOKING_FOR_WORK_PROMPT, /target or range|range/i);
-    assert.match(tiny.TINY_MODE_LOOKING_FOR_WORK_PROMPT, /flex|start date|scope|value/i);
-    assert.match(tiny.TINY_MODE_LOOKING_FOR_WORK_PROMPT, /lowball|never accept/i);
-    assert.match(tiny.TINY_MODE_LOOKING_FOR_WORK_PROMPT, /walkaway|BATNA|bottom line|minimum/i);
-  });
+  // TINY_MODE_RECRUITING_PROMPT and TINY_MODE_LOOKING_FOR_WORK_PROMPT
+  // micro-rule tests were removed with the retired 'recruiting' and
+  // 'looking-for-work' modes (mode universe narrowed to 'general' | 'sales').
 
   test('TINY_MODE_GENERAL_PROMPT requires literal transcript number on budget questions', () => {
     assert.match(tiny.TINY_MODE_GENERAL_PROMPT, /Long-context.*budget|budget.*number|literally|literal/i);
     assert.match(tiny.TINY_MODE_GENERAL_PROMPT, /never substitute|do not substitute|never round|do not round/i);
   });
 
-  test('TINY_MODE_LECTURE_PROMPT key-point rule preserves the constant/log contrast', () => {
-    assert.match(tiny.TINY_MODE_LECTURE_PROMPT, /amortized constant|constant, not log/i);
-    assert.match(tiny.TINY_MODE_LECTURE_PROMPT, /📝/);
-  });
+  // TINY_MODE_LECTURE_PROMPT key-point test was removed with the retired
+  // 'lecture' mode (mode universe narrowed to 'general' | 'sales').
 
   test('TINY_CORE did NOT absorb the mode-specific micro-rules (no bloat)', () => {
     // Each of these phrases must live only in its mode prompt, not in CORE,
