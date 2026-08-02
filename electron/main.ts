@@ -5630,19 +5630,6 @@ export class AppState {
       this.sendToWindow(win, 'intelligence-suggested-answer-discard', { reason })
     })
 
-    // Verified code execution (background): a ✓ badge when the shown code passed
-    // its executed test cases, and a NEW corrected message when it failed and a
-    // re-verified fix was produced. Both arrive AFTER the answer was shown.
-    this.intelligenceManager.on('code_verified', (info: { question: string; passed: number; total: number; language: string }) => {
-      const win = mainWindow()
-      this.sendToWindow(win, 'intelligence-code-verified', info)
-    })
-    this.intelligenceManager.on('code_correction', (info: { question: string; answer: string; note: string; reVerified: boolean }) => {
-      flushBatchesBeforeFinal();
-      const win = mainWindow()
-      this.sendToWindow(win, 'intelligence-code-correction', info)
-    })
-
     // Sprint 7: dedicated negotiation-coaching channel. Engine emits this
     // INSTEAD of suggested_answer / suggested_answer_token when it detects
     // the coaching sentinel, so the renderer no longer needs JSON.parse-

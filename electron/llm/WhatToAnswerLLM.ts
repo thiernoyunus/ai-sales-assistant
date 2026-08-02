@@ -18,7 +18,6 @@ import { isLayerAllowed } from "./contextRoute";
 import { DOCUMENT_GROUNDING_SCOPE_DENIED_MESSAGE, type ProviderDataScope } from "./ProviderRouter";
 import type { ActiveModeDocumentGroundingInfo } from "../services/ModesManager";
 import type { ModeRetrievalOptions } from "../services/ModeContextRetriever";
-import { isCodeVerificationEnabled } from "./codeVerification/verificationEnabled";
 import type { WhatToAnswerRequestSnapshot } from "./whatToAnswerRequestSnapshot";
 
 // Wall-clock budget for the pre-stream mode-context HYBRID retrieval await.
@@ -195,7 +194,7 @@ ANSWER SHAPE: ${intentResult.answerShape}
 </intent_and_shape>`);
             }
             if (answerPlan) {
-                intentContextParts.push(formatAnswerPlanForPrompt(answerPlan, isCodeVerificationEnabled()));
+                intentContextParts.push(formatAnswerPlanForPrompt(answerPlan, false));
             }
             if (instructionContext) {
                 intentContextParts.push(instructionContext);

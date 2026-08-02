@@ -91,10 +91,6 @@ export type { EvidenceValidationResult, EvidenceViolation, EvidenceViolationCode
 export { decideProfileIntelligence } from "./ProfileIntelligenceRouter";
 export type { ProfileIntelligenceDecision, ProfileContextType, AnswerPerspective, DecideProfileInput } from "./ProfileIntelligenceRouter";
 export { CODING_CONTRACT, CODING_CONTRACT_TINY, CODING_SECTIONS, CODING_SECTION_HEADINGS, CODING_VERIFICATION_INSTRUCTION, VERIFICATION_SPEC_RE, stripVerificationSpec, StreamingSpecStripper } from "./codingContract";
-export { verifyCodingAnswer } from "./codeVerification/verifyCodingAnswer";
-export type { VerifyCodingOptions, CorrectionFn } from "./codeVerification/verifyCodingAnswer";
-export type { Verdict, VerificationOutcome, VerifyLanguage, TestCase, RunResult, VerificationSpec } from "./codeVerification/types";
-export { extractVerificationSpec, parseProblemExamples, extractCodeBlock } from "./codeVerification/extractTests";
 export { buildContextRoute, isLayerAllowed, summarizeContextRoute } from "./contextRoute";
 export type { ContextRoute, ContextRouteLayer } from "./contextRoute";
 export {

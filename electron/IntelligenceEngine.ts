@@ -37,7 +37,6 @@ import type { WhatToAnswerRequestSnapshot } from './llm/whatToAnswerRequestSnaps
 import { resolveCanonicalTurn } from './llm/resolveCanonicalTurn';
 import { buildGracefulRetry } from './llm/manualProfileIntelligence';
 import { CodingStreamGate } from './llm/codingStreamGate';
-import { isCodeVerificationEnabled } from './llm/codeVerification/verificationEnabled';
 import { DynamicActionEngine } from './services/dynamic-actions/DynamicActionEngine';
 import { DynamicAction } from './services/dynamic-actions/DynamicAction';
 import { ScreenContext } from './services/screen/ScreenContextService';
@@ -116,8 +115,6 @@ export interface IntelligenceModeEvents {
     // fires when the shown code passed N executed test cases (renderer shows a
     // small "✓ verified" badge). 'correction' fires when the shown code FAILED
     // and a re-verified fix was produced — renderer posts it as a NEW message.
-    'code_verified': (info: { question: string; passed: number; total: number; language: string }) => void;
-    'code_correction': (info: { question: string; answer: string; note: string; reVerified: boolean }) => void;
     'refined_answer': (answer: string, intent: string) => void;
     'refined_answer_token': (token: string, intent: string) => void;
     'recap': (summary: string) => void;
@@ -3752,26 +3749,6 @@ export class IntelligenceEngine extends EventEmitter {
                 });
             } catch { /* attribution never affects the answer */ }
 
-            // VERIFIED CODE EXECUTION (background, strictly additive). For coding
-            // answers, run the code against test cases AFTER it's shown — never
-            // awaited, so the user sees the answer with zero added latency. On
-            // pass → 'code_verified' badge; on a re-verified fix → 'code_correction'
-            // new message. Fire-and-forget; failures never affect this return.
-            if (isCoding && isCodeVerificationEnabled()) {
-                const verificationCancellationToken = new AbortController();
-                this.whatToAnswerBackgroundCancellationTokens.add(verificationCancellationToken);
-                void this.maybeVerifyCoding(
-                    rawAnswerForVerify,
-                    question || 'What to Answer',
-                    screenContext?.ocrText,
-                    trace,
-                    generationId,
-                    verificationCancellationToken.signal,
-                ).finally(() => {
-                    this.whatToAnswerBackgroundCancellationTokens.delete(verificationCancellationToken);
-                });
-            }
-
             trace.mark('ui_render_completed', { chars: fullAnswer.length });
             trace.finish({ answerType: answerPlan.answerType, chars: fullAnswer.length });
             this.setMode('idle');
@@ -3813,95 +3790,6 @@ export class IntelligenceEngine extends EventEmitter {
             }
             // Resume background drains on EVERY exit path (answer, abort, error).
             releaseFg();
-        }
-    }
-
-    /**
-     * Background verification of a coding answer (REPORT: verified code execution).
-     * Runs the model's code against extracted test cases in a sandbox AFTER the
-     * answer is shown. NEVER awaited by the caller, NEVER throws — verification
-     * is strictly additive and must not affect the answer flow. Emits:
-     *   - 'code_verified' when the shown code passed (renderer shows a ✓ badge), or
-     *   - 'code_correction' when it failed and a re-verified fix was produced
-     *     (renderer posts a new corrected message).
-     * Telemetry milestones ride the existing PiLatencyTrace (metadata only).
-     */
-    private async maybeVerifyCoding(
-        shownAnswer: string,
-        question: string,
-        screenText: string | undefined,
-        trace: PiLatencyTrace,
-        generationId: number,
-        abortSignal?: AbortSignal,
-    ): Promise<void> {
-        // Supersession guard: if the user fired a newer generation while this
-        // background verification ran, its result belongs to a now-abandoned
-        // answer. Bailing before each emit prevents badging/correcting the WRONG
-        // (newer) message — a false-"verified" on code we didn't actually verify.
-        const superseded = () => abortSignal?.aborted === true || this.currentGenerationId !== generationId;
-        try {
-            const { verifyCodingAnswer } = await import('./llm/codeVerification/verifyCodingAnswer');
-            const outcome = await verifyCodingAnswer({
-                answer: shownAnswer,
-                question,
-                screenText,
-                // Correction call: regenerate a fixed answer via the same chat path.
-                // Bounded to ONE attempt inside verifyCodingAnswer.
-                correct: async (repairPrompt: string) => {
-                    // Background coding-correction (post-answer, fire-and-forget) —
-                    // deadline-guarded so a stalled provider can't leave a hung
-                    // background task / leaked request (Issue 1 consistency). 7s (was
-                    // 6s) clears MiniMax's 4-6s first-token when it's the fallback.
-                    let fixed = '';
-                    await raceStreamWithDeadline({
-                        stream: this.llmHelper.streamChat(
-                            repairPrompt,
-                            undefined,
-                            undefined,
-                            undefined,
-                            true,
-                            true,
-                            [],
-                            abortSignal,
-                        ) as AsyncGenerator<string>,
-                        firstUsefulDeadlineMs: this.llmHelper.isUsingOllama() ? LIVE_LOCAL_FIRST_USEFUL_TIMEOUT_MS : 7000,
-                        isUsefulYet: () => fixed.length >= 5,
-                        shouldAbort: () => fixed.length > 1200 || superseded(),
-                        onToken: (tok: string) => { fixed += tok; },
-                    });
-                    return fixed;
-                },
-                onEvent: (name, props) => { try { trace.mark(name as any, props); } catch { /* telemetry never breaks verify */ } },
-            });
-
-            if (superseded()) return; // a newer answer took over — don't badge/correct the stale one
-
-            const v = outcome.verdict;
-            if (v.passed) {
-                this.emit('code_verified', {
-                    question,
-                    passed: v.passedCount,
-                    total: v.total,
-                    language: v.language || 'unknown',
-                });
-                return;
-            }
-            // Only surface a correction when we actually produced one. A skip
-            // (cloud language pending / no runtime / no tests) shows nothing —
-            // we never claim "verified" and never cry wolf on an unrun answer.
-            if (outcome.corrected) {
-                const { answer, note, reVerifiedPassed } = outcome.corrected;
-                // Strip the hidden spec before the corrected answer is displayed.
-                const { stripVerificationSpec } = await import('./llm/codingContract');
-                this.emit('code_correction', {
-                    question,
-                    answer: stripVerificationSpec(answer),
-                    note,
-                    reVerified: reVerifiedPassed,
-                });
-            }
-        } catch (e: any) {
-            console.warn('[IntelligenceEngine] coding verification skipped (non-fatal):', e?.message);
         }
     }
 

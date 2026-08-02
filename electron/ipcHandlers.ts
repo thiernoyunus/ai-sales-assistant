@@ -25,7 +25,6 @@ import type { StreamRouteOptions } from './llm/streamContextPolicy';
 import { buildProfileJitPrompt } from './llm/ProfileJitPromptBuilder';
 import { decideSessionWritePolicy, type FinalGenerationMode, type SessionWriteDecision } from './llm/FinalAnswerGenerationPolicy';
 import { stripEmbeddedAnswerContract } from './llm/stripEmbeddedAnswerContract';
-import { isCodeVerificationEnabled } from './llm/codeVerification/verificationEnabled';
 import { CodingStreamGate } from './llm/codingStreamGate';
 import { PiLatencyTrace } from './services/telemetry/PiLatencyTracer';
 import { beginTrace, commitTrace } from './intelligence/IntelligenceTrace';
@@ -1796,24 +1795,17 @@ export function initializeIpcHandlers(appState: AppState): void {
           //      unchanged from before this fix.
           const planIsCodingType = isCodingAnswerType(answerPlan.answerType);
           if (explicitCodingContract) {
-            const includeVerification = explicitContractProducesCode(explicitCodingContract) && isCodeVerificationEnabled();
-            const codingContract = buildCodingContractPrompt(explicitCodingContract, {
-              includeVerification,
-              verificationInstruction: CODING_VERIFICATION_INSTRUCTION,
-            });
+            const codingContract = buildCodingContractPrompt(explicitCodingContract, { includeVerification: false });
             context = codingPriorProblemBlock ? `${codingContract}\n\n${codingPriorProblemBlock}` : codingContract;
           } else if (planIsCodingType) {
             // Plain coding question (no constraint) → the EXACT proven path, byte unchanged.
-            const baseContract = formatAnswerPlanForPrompt(answerPlan, isCodeVerificationEnabled());
+            const baseContract = formatAnswerPlanForPrompt(answerPlan, false);
             context = codingPriorProblemBlock ? `${baseContract}\n\n${codingPriorProblemBlock}` : baseContract;
           } else {
             // A follow-up ("now optimize it") promoted to coding though the plan type is
             // follow_up/unknown → use the full six-section coding contract (null builder),
             // NOT the follow_up template, plus the prior problem.
-            const codingContract = buildCodingContractPrompt(null, {
-              includeVerification: isCodeVerificationEnabled(),
-              verificationInstruction: CODING_VERIFICATION_INSTRUCTION,
-            });
+            const codingContract = buildCodingContractPrompt(null, { includeVerification: false });
             context = codingPriorProblemBlock ? `${codingContract}\n\n${codingPriorProblemBlock}` : codingContract;
           }
           console.log('[IPC] Coding contract enforced; rolling context excluded', {
@@ -4122,60 +4114,6 @@ export function initializeIpcHandlers(appState: AppState): void {
             // coding-followup/guards). Emitted exactly once on the done boundary.
             _emitAttr({ assistant_voice_guard_triggered: Boolean(finalText) && _attr.assistant_voice_guard_triggered });
 
-            // VERIFIED CODE EXECUTION (background, strictly additive). For coding
-            // chat answers, run the code against test cases AFTER it's shown —
-            // never awaited, so first answer has zero added latency. Emits a ✓
-            // badge on pass or a corrected message on a re-verified fix.
-            if (isCodingChat && fullResponse.trim().length > 0 && isCodeVerificationEnabled()
-                && explicitContractProducesCode(explicitCodingContract)) {
-              // Only verify when NEW code was produced (default contract or code_only).
-              // A complexity_only / dry_run_only / explain_only follow-up emits no code
-              // and no <verification_spec>, so there is nothing to run.
-              // Verify against the RAW response (keeps the spec); if repair changed
-              // the answer, prefer the repaired (already spec-free) text.
-              const verifyTarget = finalText || rawResponseForVerify;
-              void (async () => {
-                try {
-                  const { verifyCodingAnswer } = await import('./llm/codeVerification/verifyCodingAnswer');
-                  const { stripVerificationSpec } = await import('./llm/codingContract');
-                  const outcome = await verifyCodingAnswer({
-                    answer: verifyTarget,
-                    question: message,
-                    correct: async (repairPrompt: string) => {
-                      // Background coding-correction (post-answer). Deadline-guarded
-                      // so a stalled provider can't leave a hung background task. 7s
-                      // (was 6s) clears MiniMax's 4-6s first-token when it's the fallback.
-                      let fixed = '';
-                      await raceStreamWithDeadline({
-                        stream: llmHelper.streamChat(repairPrompt, undefined, undefined, undefined, true, true) as AsyncGenerator<string>,
-                        firstUsefulDeadlineMs: 7000,
-                        isUsefulYet: () => fixed.length >= 5,
-                        onToken: (tok: string) => { fixed += tok; },
-                      });
-                      return fixed;
-                    },
-                  });
-                  if (_chatStreamsBySender.get(senderId)?.streamId !== myStreamId) return; // superseded
-                  if (outcome.verdict.passed) {
-                    event.sender.send('intelligence-code-verified', {
-                      question: message,
-                      passed: outcome.verdict.passedCount,
-                      total: outcome.verdict.total,
-                      language: outcome.verdict.language || 'unknown',
-                    });
-                  } else if (outcome.corrected) {
-                    event.sender.send('intelligence-code-correction', {
-                      question: message,
-                      answer: stripVerificationSpec(outcome.corrected.answer),
-                      note: outcome.corrected.note,
-                      reVerified: outcome.corrected.reVerifiedPassed,
-                    });
-                  }
-                } catch (verifyErr: any) {
-                  console.warn('[IPC] chat coding verification skipped (non-fatal):', verifyErr?.message);
-                }
-              })();
-            }
           }
         } catch (streamError: any) {
           console.error('[IPC] Streaming error:', streamError);
@@ -4424,28 +4362,6 @@ export function initializeIpcHandlers(appState: AppState): void {
 
   safeHandle('set-verbose-logging', async (_, enabled: boolean) => {
     appState.setVerboseLogging(enabled);
-    return { success: true };
-  });
-
-  safeHandle('get-code-verification', async () => {
-    // Default OFF: code verification is currently disabled. Only true when the
-    // user has explicitly opted in via Settings → General or env override.
-    const v = SettingsManager.getInstance().get('codeVerificationEnabled');
-    return v === true;
-  });
-
-  safeHandle('set-code-verification', async (_, enabled: boolean) => {
-    if (typeof enabled !== 'boolean') {
-      return { success: false, error: 'invalid_type' };
-    }
-    SettingsManager.getInstance().set('codeVerificationEnabled', enabled);
-    try {
-      BrowserWindow.getAllWindows().forEach((win) => {
-        if (!win.isDestroyed()) {
-          win.webContents.send('code-verification-changed', enabled);
-        }
-      });
-    } catch { /* broadcasting is best-effort */ }
     return { success: true };
   });
 

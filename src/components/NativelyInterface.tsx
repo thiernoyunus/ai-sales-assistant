@@ -221,10 +221,7 @@ interface Message {
   // Verified code execution: set when the code in this message passed N executed
   // test cases (renderer shows a small "✓ verified" badge). undefined = not (yet)
   // verified — we NEVER show the badge speculatively.
-  codeVerified?: { passed: number; total: number; language: string };
   // Marks a message that was posted as a CORRECTION of an earlier wrong answer.
-  isCorrection?: boolean;
-  correctionNote?: string;
   isNegotiationCoaching?: boolean;
   negotiationCoachingData?: {
     tacticalNote: string;
@@ -547,25 +544,7 @@ const MessageRow = React.memo(
                 <span>{t('Screenshot attached')}</span>
               </div>
             )}
-            {/* Correction header: this message fixes an earlier wrong answer. */}
-            {msg.role === 'system' && msg.isCorrection && (
-              <div className="flex items-center gap-1.5 mb-1.5 text-[11px] font-medium text-amber-500">
-                <span aria-hidden>↻</span>
-                <span>{t('Corrected answer')}{msg.correctionNote ? ` — ${msg.correctionNote}` : ''}</span>
-              </div>
-            )}
             {renderMessageText(msg)}
-            {/* Verified badge: the code in this message passed executed tests. */}
-            {msg.role === 'system' && msg.codeVerified && (
-              <div className="flex items-center gap-1 mt-1.5 text-[10px] font-medium text-green-500" title={`Ran ${msg.codeVerified.total} test case(s) successfully`}>
-                <span aria-hidden>✓</span>
-                <span>
-                  {msg.codeVerified.language === 'verified'
-                    ? t('verified by running the code')
-                    : `verified · ${msg.codeVerified.passed}/${msg.codeVerified.total} test case${msg.codeVerified.total === 1 ? '' : 's'} passed`}
-                </span>
-              </div>
-            )}
           </div>
         </div>
       </div>
@@ -3135,53 +3114,6 @@ const NativelyInterface: React.FC<NativelyInterfaceProps> = ({
     );
 
     // Verified code execution: the shown code passed its executed test cases.
-    // Attach a ✓ badge to the most recent assistant (system) message — but ONLY
-    // if it is still the LAST message. If a newer user turn arrived since (the
-    // last row is a user/interviewer message), this badge belongs to a now-
-    // superseded answer, so we drop it rather than badge the wrong row. (The
-    // engine also guards by generationId; this is the renderer-side backstop.)
-    cleanups.push(
-      window.electronAPI.onIntelligenceCodeVerified?.((data) => {
-        setMessages((prev) => {
-          const last = prev[prev.length - 1];
-          if (!last || last.role !== 'system') return prev; // superseded by a newer turn
-          const next = [...prev];
-          next[next.length - 1] = { ...last, codeVerified: { passed: data.passed, total: data.total, language: data.language } };
-          return next;
-        });
-      }) ?? (() => {}),
-    );
-
-    // Verified code execution: the shown code FAILED and a (re-verified) fix was
-    // produced. REPLACE the wrong answer IN PLACE (same markdown coding card, same
-    // format) so the compact overlay doesn't grow — the user always ends on the
-    // CORRECT code, marked with a small "corrected" header + ✓ verified badge.
-    // Only replace when the wrong card is still the LAST message (same
-    // supersession guard as the badge); if a newer turn arrived, append instead
-    // so a genuine correction is never silently dropped.
-    cleanups.push(
-      window.electronAPI.onIntelligenceCodeCorrection?.((data) => {
-        setMessages((prev) => {
-          const last = prev[prev.length - 1];
-          const corrected = {
-            text: data.answer,
-            isCode: true,
-            isCorrection: true,
-            correctionNote: data.note,
-            codeVerified: data.reVerified ? { passed: 1, total: 1, language: 'verified' } : undefined,
-          };
-          if (last && last.role === 'system' && !last.isStreaming) {
-            // In-place swap: keep the same message id so React reuses the row.
-            const next = [...prev];
-            next[next.length - 1] = { ...last, ...corrected };
-            return next;
-          }
-          // Superseded / not a finalized system row → append (never lose the fix).
-          return [...prev, { id: `correction-${Date.now()}`, role: 'system', ...corrected }];
-        });
-      }) ?? (() => {}),
-    );
-
     // Sprint 9: time-batched token channel — single subscription that
     // unrolls a kind-tagged items array onto the existing queueToken path.
     // The 5 per-token channels (intelligence-suggested-answer-token,

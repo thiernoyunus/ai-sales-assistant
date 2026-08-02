@@ -449,12 +449,6 @@ interface ElectronAPI {
   onIntelligenceSuggestedAnswerDiscard: (
     callback: (data: { reason: string }) => void,
   ) => () => void;
-  onIntelligenceCodeVerified: (
-    callback: (data: { question: string; passed: number; total: number; language: string }) => void,
-  ) => () => void;
-  onIntelligenceCodeCorrection: (
-    callback: (data: { question: string; answer: string; note: string; reVerified: boolean }) => void,
-  ) => () => void;
   onIntelligenceRefinedAnswer: (
     callback: (data: { answer: string; intent: string }) => void,
   ) => () => void;
@@ -797,8 +791,6 @@ interface ElectronAPI {
   // Verbose / Debug Logging
   getVerboseLogging: () => Promise<boolean>;
   setVerboseLogging: (enabled: boolean) => Promise<{ success: boolean }>;
-  getCodeVerification: () => Promise<boolean>;
-  setCodeVerification: (enabled: boolean) => Promise<{ success: boolean }>;
   getMeetingRetention: () => Promise<'forever' | '7d' | '30d' | 'never'>;
   setMeetingRetention: (
     retention: 'forever' | '7d' | '30d' | 'never',
@@ -1715,22 +1707,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.removeListener('intelligence-suggested-answer-discard', subscription);
     };
   },
-  // Verified code execution: ✓ badge when shown code passed executed tests.
-  onIntelligenceCodeVerified: (
-    callback: (data: { question: string; passed: number; total: number; language: string }) => void,
-  ) => {
-    const subscription = (_: any, data: any) => callback(data);
-    ipcRenderer.on('intelligence-code-verified', subscription);
-    return () => { ipcRenderer.removeListener('intelligence-code-verified', subscription); };
-  },
-  // Verified code execution: a NEW corrected message when shown code failed.
-  onIntelligenceCodeCorrection: (
-    callback: (data: { question: string; answer: string; note: string; reVerified: boolean }) => void,
-  ) => {
-    const subscription = (_: any, data: any) => callback(data);
-    ipcRenderer.on('intelligence-code-correction', subscription);
-    return () => { ipcRenderer.removeListener('intelligence-code-correction', subscription); };
-  },
   // Sprint 7: dedicated negotiation-coaching channel.
   onIntelligenceNegotiationCoaching: (callback: (data: { payload: any }) => void) => {
     const subscription = (_: any, data: any) => callback(data);
@@ -2314,8 +2290,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Verbose / Debug Logging
   getVerboseLogging: () => ipcRenderer.invoke('get-verbose-logging'),
   setVerboseLogging: (enabled: boolean) => ipcRenderer.invoke('set-verbose-logging', enabled),
-  getCodeVerification: () => ipcRenderer.invoke('get-code-verification'),
-  setCodeVerification: (enabled: boolean) => ipcRenderer.invoke('set-code-verification', enabled),
   getMeetingRetention: () => ipcRenderer.invoke('get-meeting-retention'),
   setMeetingRetention: (retention: 'forever' | '7d' | '30d' | 'never') =>
     ipcRenderer.invoke('set-meeting-retention', retention),
