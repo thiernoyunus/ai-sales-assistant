@@ -13,7 +13,7 @@ This file is the pick-up point. If you are new to this work, read this first, th
 | 0 — docs/positioning | done |
 | 1 — clean deletions | done |
 | 2 — shimmed deletions | **done, ~8,600 lines removed** |
-| 3 — mode collapse | **in progress** — DB migration landed, enum not yet narrowed |
+| 3 — mode collapse | **in progress** — migration + enum narrowed; mirrors and tests remain |
 | 4 — answer-type narrowing | not started |
 | 5 — docs, tests, branding | not started |
 
@@ -45,6 +45,36 @@ A `user_version` 25 → 26 migration in [DatabaseManager.ts](electron/db/Databas
 **This had to come first.** `template_type` is a free TEXT column, so upgrading installs hold literal strings like `'technical-interview'`. If the enum narrows before those rows are migrated, `getOrMigrateSourceContract` and the `ModesManager` startup invariant loop hit unhandled paths at launch.
 
 **Deviation from the plan, on purpose.** The plan said remap every row to `'sales'`. This maps to `'general'` instead: `'general'` survives the narrowing as the neutral fallback (`general_meeting_answer` is a load-bearing floor type in `modeProfiles.ts:142-145`), and remapping to `'sales'` would silently turn a user's "Weekly standup" mode into sales prompting. `'__reserved__'` is preserved — it is the v23 FK sentinel for profile OKF cards, not a user template. **If the product owner prefers `'sales'`, change the one `UPDATE` and its test.**
+
+### Narrowing progress
+
+**Done** (`5ef9add`, `bd45f1b`):
+- The union is now declared **once**, in `llm/modeProfiles.ts`, as `'general' | 'sales'`. It lives in the leaf `llm/` layer because `services/` imports from `llm/` and never the reverse — that direction is *why* the copy existed. `ModesManager` re-exports it, so existing `import { ModeTemplateType } from '../services/ModesManager'` call sites are unchanged.
+- `ModesManager`: `MODE_TEMPLATES`, `TEMPLATE_NOTE_SECTIONS`, `TEMPLATE_SYSTEM_PROMPTS` → 2 entries. `PREMIUM_INTERCEPT_INCOMPATIBLE_TEMPLATES` → empty set (kept, not deleted — every mode it named is retired and neither survivor suppresses the intercept). `buildUserSourceContract` lost its interview-prep branch; every surviving mode is reference-file owned, which is what sales wants. Six unused prompt imports dropped.
+- `ContextRouter`: `MODE_TEMPLATE_TYPES` → 2; unreachable `team-meet` / interview-followup branches collapsed. **Kept** the `answerType === 'lecture_answer'` half of the doc-grounded gate — per plan Phase 4 note 2 that branch is what makes "answer from the product PDF" work and must be *rerouted*, not deleted.
+- `MeetingModeDetector`: narrowed **and its confidence math re-derived** — see finding 4 above. Now `clamp01(bestScore / 12)` with the margin term removed, because margin degenerated to `bestScore` with one candidate.
+
+**Empirically confirmed:** after narrowing only the `ModesManager` copy, the whole project still compiled with **zero errors**. The mirrors really are independent. `modeProfiles.ts` carried a comment claiming drift "would surface as a type error at the call sites" — it does not.
+
+### BLOCKER discovered: the test suite still asserts the 8-mode world
+
+The retired mode prompt constants (`MODE_LOOKING_FOR_WORK_PROMPT`, `MODE_RECRUITING_PROMPT`, `MODE_TEAM_MEET_PROMPT`, `MODE_LECTURE_PROMPT`, `MODE_TECHNICAL_INTERVIEW_PROMPT`, `MODE_SEMINAR_PROMPT`) and all five `TINY_MODE_*_PROMPT` constants **cannot be deleted yet** — every one is still referenced by live tests:
+
+```
+electron/llm/__tests__/modePrompts.test.mjs
+electron/llm/__tests__/HumanizedInterviewVoice2026_06_15.test.mjs
+electron/llm/__tests__/InterviewHumanFeel2026_06_15.test.mjs
+electron/llm/__tests__/TinySpokenVoice2026_06_15.test.mjs
+electron/llm/__tests__/TinyPromptHumanVoice2026_06_15.test.mjs
+electron/services/__tests__/ModesManager.test.mjs          (EXPECTED_MODE_TYPES asserts all 8)
+electron/services/__tests__/ModeSeminarGroundingProfile.test.mjs
+electron/test/__tests__/IdentityGuard.test.mjs
+evalHarnessPatterns.test.mjs
+```
+
+Most of these test a *general* property (every mode prompt has a human voice / does not leak identity / starts with the shared prefix) and merely use the 8 modes as their sample set. Those should be **narrowed, not deleted** — the property is still worth asserting. Only `ModeSeminarGroundingProfile.test.mjs` looks like a pure single-mode test. Retire the test references first, then the constants.
+
+**A prior survey wrongly reported `MODE_TEMPLATES` as having zero references** — it is used by two test files. Verify before deleting anything on a survey's say-so.
 
 ### What is left: narrowing the enum
 
