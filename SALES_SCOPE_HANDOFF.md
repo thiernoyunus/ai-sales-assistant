@@ -13,7 +13,7 @@ This file is the pick-up point. If you are new to this work, read this first, th
 | 0 — docs/positioning | done |
 | 1 — clean deletions | done |
 | 2 — shimmed deletions | **done, ~8,600 lines removed** |
-| 3 — mode collapse | **in progress** — migration + enum narrowed; mirrors and tests remain |
+| 3 — mode collapse | **code complete** — migration, enum, mirrors, validators, tests, prompts all done; full suite confirming |
 | 4 — answer-type narrowing | not started |
 | 5 — docs, tests, branding | not started |
 
@@ -22,10 +22,12 @@ This file is the pick-up point. If you are new to this work, read this first, th
 - `npm run typecheck:electron` and `npx tsc --noEmit`: **both clean** as of `ef7cd34`.
 - Full suite after the code-verification removal (`16d42cd`): **green, exit 0**.
 - Full suite after the vision removal: **last observed 0 failures in 156 KB of output, still running.** Not yet confirmed end to end. Re-run and confirm before building on it.
-- `electron/db/__tests__/ModeTemplateCollapseV26.test.mjs`: **written but never executed.** It needs `npm run build:electron` first, which could not run while the suite was reading `dist-electron/`. **Run this before anything else.**
+- `electron/db/__tests__/ModeTemplateCollapseV26.test.mjs`: **passing, all four cases** including the `__reserved__` sentinel guard.
+
+It needs Electron's runtime — under plain `node --test`, `DatabaseManager.db` is null (better-sqlite3 is built against Electron's ABI) and every assertion fails misleadingly. Also note `electron/db/__tests__/` is **not** in the `npm test` globs, so it never runs in the normal suite:
 
 ```bash
-npm run build:electron && node --test electron/db/__tests__/ModeTemplateCollapseV26.test.mjs
+npm run build:electron && ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron --test electron/db/__tests__/ModeTemplateCollapseV26.test.mjs
 ```
 
 ### Gotcha that cost time twice
@@ -56,7 +58,16 @@ A `user_version` 25 → 26 migration in [DatabaseManager.ts](electron/db/Databas
 
 **Empirically confirmed:** after narrowing only the `ModesManager` copy, the whole project still compiled with **zero errors**. The mirrors really are independent. `modeProfiles.ts` carried a comment claiming drift "would surface as a type error at the call sites" — it does not.
 
-### BLOCKER discovered: the test suite still asserts the 8-mode world
+**Also done** (`609f73b`, `2e4858a`, `c2b4610`, `42b916d`, `9974990`):
+- The silent mirrors: `modeSourceContract` (`ContractTemplateType` + the `isContractTemplateType()` `===` chain), `ModeGenerator` (mirror deleted in favor of the import; `VALID_TEMPLATE_TYPES`; **and the meta-prompt that tells the LLM which types are legal** — stale text there made the generator emit types the validator rejects), `PostCallWorkflow` (kept its `| string` widening, removed the unreachable coaching branches).
+- Runtime validators with no compiler protection: `ProfileIntelligenceRouter.MODE_TEMPLATE_TYPES` (it gates an unchecked `as` cast — a real path for a retired string to enter typed code), `ContextFusionEngine.MODES_SUPPRESSING_PROFILE`, `ProfileTreeService.CANDIDATE_VOICE_MODES`, `liveSessionMemory.toMemoryMode`/`toSurface`, `ipcHandlers.clarSurface`.
+- Tests narrowed rather than deleted wherever they assert a general property (spoken-contract composition, identity guard, prefix dedup). Negative examples were re-pointed at `MODE_GENERAL_PROMPT` after verifying it genuinely lacks the contract.
+- The 11 retired prompt constants deleted, −711 lines.
+- Stale user-facing copy in `IntelligenceSettings.tsx`.
+
+**Deliberately NOT narrowed** — separate type spaces that merely reuse the same strings: `llm/SessionMemory.MemoryMode` (still has `interview`/`coding`/`negotiation`), `llm/FollowUpResolver.FollowUpSurface`, `llm/ProviderRouter`'s same-named type, `MeetingRecipes.RecipeType`, `LongTermMemoryService`'s surface tags, and a stopword list containing the English word "seminar".
+
+### RESOLVED: the test suite blocker (kept for the record)
 
 The retired mode prompt constants (`MODE_LOOKING_FOR_WORK_PROMPT`, `MODE_RECRUITING_PROMPT`, `MODE_TEAM_MEET_PROMPT`, `MODE_LECTURE_PROMPT`, `MODE_TECHNICAL_INTERVIEW_PROMPT`, `MODE_SEMINAR_PROMPT`) and all five `TINY_MODE_*_PROMPT` constants **cannot be deleted yet** — every one is still referenced by live tests:
 
