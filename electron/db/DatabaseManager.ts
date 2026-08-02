@@ -1330,6 +1330,37 @@ export class DatabaseManager {
             this.db.pragma('user_version = 25');
         }
 
+        // Version 25 → 26: collapse the mode template universe to sales.
+        //
+        // template_type is a free TEXT column, so existing installs carry rows
+        // written by earlier builds — 'technical-interview', 'lecture',
+        // 'seminar', 'recruiting', 'team-meet', 'looking-for-work'. Once
+        // ModeTemplateType narrows, any read of one of those hits an unhandled
+        // path in getOrMigrateSourceContract and in the startup invariant loop.
+        // This must therefore land BEFORE the enum narrows, not with it.
+        //
+        // Retired types map to 'general', not 'sales'. 'general' survives the
+        // narrowing as the neutral fallback (general_meeting_answer is a
+        // load-bearing floor type), and silently converting someone's "Weekly
+        // standup" mode into sales prompting would change what the app says on
+        // a call they did not ask to be sold on. A user who wants sales
+        // behavior picks the sales mode.
+        //
+        // '__reserved__' is preserved: it is the FK sentinel row for profile
+        // OKF cards (v23), not a user-facing template.
+        if (version < 26) {
+            console.log('[DatabaseManager] Applying migration v25 → v26: collapse retired mode templates to general');
+            const info = this.db.prepare(`
+                UPDATE modes
+                SET template_type = 'general'
+                WHERE template_type NOT IN ('general', 'sales', '__reserved__')
+            `).run();
+            if (info.changes > 0) {
+                console.log(`[DatabaseManager] v26 migration: remapped ${info.changes} mode row(s) off retired templates`);
+            }
+            this.db.pragma('user_version = 26');
+        }
+
         console.log('[DatabaseManager] Migrations completed.');
     }
 
