@@ -71,6 +71,27 @@ electron/services/meeting/FollowUpDraftGenerator.ts  electron/services/meeting/M
 electron/services/post-call/PostCallWorkflow.ts  electron/db/DatabaseManager.ts
 ```
 
+### SURVEY FINDINGS — read before editing. These invalidate parts of the plan.
+
+A full read-only survey found **344 real occurrences across 55 files** (word-boundary matched, so `lecture_answer` / `lectureId` / `lecture_notes` are correctly excluded). Five findings change the approach:
+
+**1. Narrowing the canonical type does NOT force the mirrors to fix.** The type is independently declared **5 times** plus **4 hand-written runtime validators**. The mirrors satisfy themselves; TypeScript gives zero cross-file signal. Each must be edited by hand or it silently keeps accepting retired strings.
+
+**2. `ProviderRouter.ts:207` is a NAME COLLISION — do not touch it.** It declares `export type ModeTemplateType = 'sales' | 'recruiting' | 'interview' | 'default'` — same name, unrelated 4-value set, with `'interview'`/`'default'` that are not mode types at all. Its `modePreferences` Record at :408 is keyed on *that* type. Editing it while "narrowing ModeTemplateType" is the single most likely mistake here.
+
+**3. `DatabaseManager.ts:790` `BACKFILL_SECTIONS` MUST KEEP its retired-mode keys — forever.** It is v12→v13 migration code operating on already-persisted rows from old app versions. Cleaning it up breaks upgrades from old databases. It looks like dead config; it is not.
+
+**4. `MeetingModeDetector` confidence math genuinely breaks — not just list edits.** Scoring: opening-window matches score `weight × 2`, later matches `weight × 1`, no double-count; calendar title hints add flat weight. Winner needs `bestScore >= 3` or it floors to `general`. Then `confidence = clamp01((bestScore/12)*0.6 + (margin/8)*0.4)` where `margin = bestScore - secondScore`.
+   - Retired signals **vanish rather than redistribute** — a recruiting-heavy transcript scores zero everywhere and floors to `general`.
+   - With only `sales` left as a non-general candidate, **`secondScore` is always 0, so `margin === bestScore`** — the margin term loses its comparative meaning and every hit collects the full 40% bonus. Confidence becomes systematically inflated.
+   - The constants `3`, `/12`, `/8` were tuned for a 6–7-way contest. **Re-derive them; do not just delete list entries.**
+
+**5. Confirmed dead code, safe to delete outright:** the five `TINY_MODE_*_PROMPT` constants in `llm/tinyPrompts.ts` (re-exported via `llm/index.ts:138-143`, zero consumers, and `TINY_PROMPTS_SET` deliberately excludes them), and `MODE_TEMPLATES` in `ModesManager.ts:117-127` (zero external references).
+
+**Self-cleaning vs. silent:** these break at compile time once the union narrows — `TEMPLATE_NOTE_SECTIONS` (:131), `TEMPLATE_SYSTEM_PROMPTS` (:208), `PREMIUM_INTERCEPT_INCOMPATIBLE_TEMPLATES` (:459), `MODE_CONTEXT_PROFILES` (`modeProfiles.ts:109`), and the `===` comparisons in `ModesManager:585`, `ipcHandlers:1408`, `ContextRouter:151,160,318`, `liveSessionMemory:52-91`. These do **not** — `isContractTemplateType()` OR-chain (`modeSourceContract.ts:283`), `MODE_TEMPLATE_TYPES` Sets (`ContextRouter:117`, `ProfileIntelligenceRouter:89`), `VALID_TEMPLATE_TYPES` (`ModeGenerator:42`), and `PostCallWorkflow`'s union (widened with `| string`, so its :116-176 branches just become unreachable).
+
+**Also needs a product decision:** `IntelligenceSettings.tsx:30` advertises "Detects whether a meeting was a sales call, interview, standup, or lecture" — becomes literally false. And `ModeGenerator.ts:118` feeds the valid-type list **into an LLM prompt**; stale text there makes the generator emit types the validator then rejects.
+
 ### The union is hand-mirrored in six places — no single source of truth
 
 | File | Line | Members |
