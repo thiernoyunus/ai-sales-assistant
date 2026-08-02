@@ -131,7 +131,7 @@ const UNTRUSTED_SOURCES: ReadonlySet<FusionSource> = new Set<FusionSource>([
 
 // Sources suppressed by mode unless the user explicitly asked (mode-contamination rule).
 const PROFILE_SOURCES: ReadonlySet<FusionSource> = new Set<FusionSource>(['profile_tree', 'active_jd']);
-const MODES_SUPPRESSING_PROFILE: ReadonlySet<string> = new Set(['sales', 'lecture', 'team-meet']);
+const MODES_SUPPRESSING_PROFILE: ReadonlySet<string> = new Set(['sales']);
 
 const estimateTokens = (text: string): number => Math.ceil((text || '').length / 4);
 

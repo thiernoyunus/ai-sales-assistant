@@ -72,10 +72,10 @@ const Q = {
 } as const;
 
 /** Modes whose answers are spoken in the CANDIDATE/user voice (first person). In
- *  these modes a candidate question must never be answered as the assistant. */
-const CANDIDATE_VOICE_MODES = new Set([
-  'technical-interview', 'looking-for-work', 'general', 'recruiting',
-]);
+ *  these modes a candidate question must never be answered as the assistant.
+ *  The three interview-flavored modes that dominated this list are retired;
+ *  general stays because a first-person question there is still the user's. */
+const CANDIDATE_VOICE_MODES = new Set(['general']);
 
 export interface CandidatePerspectiveVerdict {
   /** True when the answer to this query must speak AS the candidate/user. */

@@ -1401,12 +1401,14 @@ export function initializeIpcHandlers(appState: AppState): void {
           } catch { /* refinement recall never blocks the answer */ }
         }
         if (!context && !autoContextSnapshot && isBareFollowUp(message)) {
-          let clarSurface: 'manual' | 'lecture' | 'sales' = 'manual';
+          // FollowUpSurface (FollowUpResolver) is a wider union that still has
+          // 'lecture'; it is not narrowed with the mode collapse. The lecture
+          // branch goes because templateType can no longer be 'lecture'.
+          let clarSurface: 'manual' | 'sales' = 'manual';
           try {
             const { ModesManager } = require('./services/ModesManager');
             const tpl = ModesManager.getInstance().getActiveModeInfo()?.templateType;
-            if (tpl === 'lecture') clarSurface = 'lecture';
-            else if (tpl === 'sales') clarSurface = 'sales';
+            if (tpl === 'sales') clarSurface = 'sales';
           } catch { /* default manual */ }
           const clarification = buildContextFreeClarification(clarSurface);
           if (_chatStreamsBySender.get(senderId)?.streamId !== myStreamId) return null;

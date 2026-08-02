@@ -48,13 +48,12 @@ export interface LiveResolveInput {
 
 /** Map a ModesManager mode id → SessionMemory MemoryMode. */
 export function toMemoryMode(modeId: string | undefined): MemoryMode {
+  // MemoryMode (SessionMemory.ts) is a separate, wider union that is NOT being
+  // narrowed with the mode collapse — it still carries 'interview', 'coding'
+  // and 'negotiation', which were never ModeTemplateType values. Only the cases
+  // for retired modes go; anything unrecognized already falls to 'general'.
   switch (modeId) {
-    case 'technical-interview': return 'technical-interview';
-    case 'looking-for-work': return 'looking-for-work';
-    case 'recruiting': return 'recruiting';
     case 'sales': return 'sales';
-    case 'lecture': return 'lecture';
-    case 'team-meet': return 'team-meet';
     case 'general': default: return 'general';
   }
 }
