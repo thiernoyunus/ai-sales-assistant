@@ -11,7 +11,15 @@
 // every shape, rewinds user_version, re-runs migrations for real, and checks
 // each one landed where it should.
 //
-// Run: npm run build:electron && node --test electron/db/__tests__/ModeTemplateCollapseV26.test.mjs
+// Run: npm run build:electron && ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron --test electron/db/__tests__/ModeTemplateCollapseV26.test.mjs
+//
+// It needs Electron's runtime, not plain node — better-sqlite3 is built against
+// Electron's ABI, so under `node --test` DatabaseManager.db comes back null and
+// every assertion fails with "Cannot read properties of null". Same reason the
+// sibling ContextOsMigrationV24 test documents the same command.
+//
+// Note electron/db/__tests__/ is NOT in the `npm test` globs, so this does not
+// run in the normal suite. Run it by hand when touching migrations.
 
 import { test, describe, before } from 'node:test';
 import assert from 'node:assert/strict';
