@@ -4413,43 +4413,6 @@ export function initializeIpcHandlers(appState: AppState): void {
     return { success: true };
   });
 
-  safeHandle('get-screen-understanding-mode', async () => {
-    return SettingsManager.getInstance().getScreenUnderstandingMode();
-  });
-
-  safeHandle(
-    'set-screen-understanding-mode',
-    async (_, mode: 'vision_first' | 'vision_only' | 'private_vision') => {
-      if (!['vision_first', 'vision_only', 'private_vision'].includes(mode)) {
-        return { success: false, error: 'invalid_mode' };
-      }
-      SettingsManager.getInstance().setScreenUnderstandingMode(mode);
-      BrowserWindow.getAllWindows().forEach((win) => {
-        if (!win.isDestroyed()) {
-          win.webContents.send('screen-understanding-mode-changed', mode);
-        }
-      });
-      return { success: true };
-    },
-  );
-
-  safeHandle('get-technical-interview-vision-first', async () => {
-    return SettingsManager.getInstance().getTechnicalInterviewVisionFirst();
-  });
-
-  safeHandle('set-technical-interview-vision-first', async (_, enabled: boolean) => {
-    if (typeof enabled !== 'boolean') {
-      return { success: false, error: 'invalid_value' };
-    }
-    SettingsManager.getInstance().set('technicalInterviewVisionFirst', enabled);
-    BrowserWindow.getAllWindows().forEach((win) => {
-      if (!win.isDestroyed()) {
-        win.webContents.send('technical-interview-vision-first-changed', enabled);
-      }
-    });
-    return { success: true };
-  });
-
   // INTELLIGENCE OS FEATURE FLAGS (Phase 14): get/set the experimental flags so they
   // can be toggled from a dev/experimental settings panel without editing env vars.
   // The flags read from SettingsManager already, so set() takes effect on the next
@@ -4632,23 +4595,6 @@ export function initializeIpcHandlers(appState: AppState): void {
       console.warn('[HindsightConfig] disable failed:', e?.message);
       return { success: false, error: e?.message };
     }
-  });
-
-  // Legacy alias for renderer builds that still call the old IPC name.
-  safeHandle('get-technical-interview-direct-vision', async () => {
-    return SettingsManager.getInstance().getTechnicalInterviewVisionFirst();
-  });
-  safeHandle('set-technical-interview-direct-vision', async (_, enabled: boolean) => {
-    if (typeof enabled !== 'boolean') {
-      return { success: false, error: 'invalid_value' };
-    }
-    SettingsManager.getInstance().set('technicalInterviewVisionFirst', enabled);
-    BrowserWindow.getAllWindows().forEach((win) => {
-      if (!win.isDestroyed()) {
-        win.webContents.send('technical-interview-vision-first-changed', enabled);
-      }
-    });
-    return { success: true };
   });
 
   // Onboarding & gate persistent backup flags
@@ -7743,12 +7689,11 @@ export function initializeIpcHandlers(appState: AppState): void {
 
   // MODE 2: What Should I Say (Primary auto-answer)
   //
-  // VISION-FIRST: image paths are validated and forwarded to IntelligenceManager
-  // which routes them through the vision provider fallback chain.
-  // LEGACY OCR PATH DISABLED: the previous build called ScreenContextService.captureScreenFromPath
-  // here to run Tesseract OCR before answering. That path is now removed from the runtime —
-  // Natively answers from the image directly via a vision-capable provider. Do not re-introduce
-  // OCR here unless a future explicit OCR-only mode is reintroduced.
+  // Image paths are validated here (they arrive from the renderer) and then
+  // forwarded to IntelligenceManager, which hands them to a vision-capable
+  // provider. There is no OCR or screen-understanding pre-pass: both the
+  // Tesseract path and the ScreenUnderstandingService vision chain were removed
+  // with the rest of the screenshot-solve feature set.
   safeHandle(
     'generate-what-to-say',
     async (
@@ -7758,12 +7703,6 @@ export function initializeIpcHandlers(appState: AppState): void {
       options?: { promptInstruction?: string; domContext?: string; domContextEnvelope?: unknown },
     ) => {
       try {
-        let screenContext: any;
-        let screenContextStatus: 'not_available' | 'available' | 'failed' = 'not_available';
-        let visionProviderUsed: string | undefined;
-        let visionModelUsed: string | undefined;
-        let visionAttempts: number | undefined;
-        let visionFailureReason: string | undefined;
 
         const validatedImagePaths: string[] | undefined = imagePaths?.length ? [] : undefined;
 
@@ -7780,7 +7719,6 @@ export function initializeIpcHandlers(appState: AppState): void {
             return {
               answer: null,
               question: question || 'unknown',
-              screenContextStatus,
               error: 'Invalid image path payload',
             };
           }
@@ -7798,67 +7736,12 @@ export function initializeIpcHandlers(appState: AppState): void {
               return {
                 answer: null,
                 question: question || 'unknown',
-                screenContextStatus,
                 error: `Invalid image path: ${validation.reason}`,
               };
             }
             validatedImagePaths!.push(imagePath);
           }
 
-          // Vision-first: run the ScreenUnderstandingService so the image is hashed, optimized,
-          // and routed through the vision provider fallback chain. The structured result becomes
-          // the screenContext that PromptAssembler consumes.
-          try {
-            const {
-              getScreenUnderstandingService,
-            } = require('./services/screen/ScreenUnderstandingService');
-            const { CredentialsManager } = require('./services/CredentialsManager');
-            const sus = getScreenUnderstandingService();
-            const settings = SettingsManager.getInstance();
-            const credentials = CredentialsManager.getInstance();
-            const providerScopes = settings.get('providerDataScopes') || {};
-            const localVisionAvailable = credentials.anyLocalVisionProviderConfigured?.() ?? false;
-            if (providerScopes.screenshots === false) {
-              console.warn(
-                localVisionAvailable
-                  ? '[ScopeFallback] screenshots denied for cloud; routing to Ollama'
-                  : '[ScopeFallback] screenshots denied; Ollama unavailable, omitting from context',
-              );
-            }
-
-            const sur = await sus.understand({
-              modeId: 'what-to-say',
-              transcript: question,
-              userAction: 'what_to_say',
-              qualityMode: 'balanced',
-              imagePaths: validatedImagePaths,
-              screenUnderstandingMode: settings.getScreenUnderstandingMode(),
-              technicalInterviewVisionFirst: settings.getTechnicalInterviewVisionFirst(),
-              providerPolicy: {
-                localOnly: settings.getScreenUnderstandingMode() === 'private_vision',
-                allowScreenshots: providerScopes.screenshots !== false,
-                visionAvailable: credentials.anyVisionProviderConfigured?.() ?? true,
-                localVisionAvailable,
-              },
-            });
-
-            screenContext = sur.status === 'available' ? sur : undefined;
-            screenContextStatus =
-              sur.status === 'available'
-                ? 'available'
-                : sur.status === 'failed'
-                  ? 'failed'
-                  : 'not_available';
-            visionProviderUsed = sur.providerUsed;
-            visionModelUsed = sur.modelUsed;
-            visionAttempts = Array.isArray(sur.attempts) ? sur.attempts.length : undefined;
-            visionFailureReason = sur.failureReason;
-          } catch (sErr: any) {
-            screenContextStatus = 'failed';
-            console.warn('[IPC] generate-what-to-say: ScreenUnderstandingService failed', {
-              errorClass: sErr?.name || 'Error',
-            });
-          }
         }
 
         const intelligenceManager = appState.getIntelligenceManager();
@@ -7907,7 +7790,6 @@ export function initializeIpcHandlers(appState: AppState): void {
             // gate can otherwise bleed a previous question's answer into the
             // current manual press). See runWhatShouldISay.forceFresh branch.
             forceFresh: true,
-            screenContext,
             promptInstruction:
               typeof options?.promptInstruction === 'string'
                 ? options.promptInstruction
@@ -7920,11 +7802,6 @@ export function initializeIpcHandlers(appState: AppState): void {
         return {
           answer,
           question: question || 'inferred from context',
-          screenContextStatus,
-          visionProviderUsed,
-          visionModelUsed,
-          visionAttempts,
-          visionFailureReason,
           imageCount: validatedImagePaths?.length || 0,
           usedImageInput: Boolean(validatedImagePaths?.length),
         };

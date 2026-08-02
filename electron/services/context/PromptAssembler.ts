@@ -154,10 +154,9 @@ export function escapeUserContent(text: string): string {
 
 // Screen context delivered to PromptAssembler.
 //
-// VISION-FIRST: extractedText, visibleSummary, screenType, codeBlocks, tables, errors
-// come from a vision LLM call (ScreenUnderstandingService → VisionProviderFallbackChain).
-// LEGACY: ocrText is retained as an optional alias for older callers that still produce
-// OCR text. New runtime paths must populate extractedText / visibleSummary instead.
+// Nothing populates this today — the vision/OCR pipeline that used to fill it was
+// removed with the screenshot-solve feature set. The block is still rendered when a
+// caller supplies one, so a future screen-share reader can reuse the shape as is.
 export interface ScreenContext {
     /** @deprecated Legacy OCR text. New callers populate `extractedText` / `visibleSummary`. */
     ocrText?: string;

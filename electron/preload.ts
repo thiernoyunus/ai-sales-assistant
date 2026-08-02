@@ -824,26 +824,6 @@ interface ElectronAPI {
       post_call_summary?: boolean;
     }) => void,
   ) => () => void;
-  getScreenUnderstandingMode: () => Promise<'vision_first' | 'vision_only' | 'private_vision'>;
-  setScreenUnderstandingMode: (
-    mode: 'vision_first' | 'vision_only' | 'private_vision',
-  ) => Promise<{ success: boolean; error?: string }>;
-  onScreenUnderstandingModeChanged: (
-    callback: (mode: 'vision_first' | 'vision_only' | 'private_vision') => void,
-  ) => () => void;
-  getTechnicalInterviewVisionFirst: () => Promise<boolean>;
-  setTechnicalInterviewVisionFirst: (
-    enabled: boolean,
-  ) => Promise<{ success: boolean; error?: string }>;
-  onTechnicalInterviewVisionFirstChanged: (callback: (enabled: boolean) => void) => () => void;
-  /** @deprecated alias for technicalInterviewVisionFirst — retained so older renderer builds keep working. */
-  getTechnicalInterviewDirectVision: () => Promise<boolean>;
-  /** @deprecated alias for technicalInterviewVisionFirst — retained so older renderer builds keep working. */
-  setTechnicalInterviewDirectVision: (
-    enabled: boolean,
-  ) => Promise<{ success: boolean; error?: string }>;
-  /** @deprecated alias for technicalInterviewVisionFirstChanged — retained so older renderer builds keep working. */
-  onTechnicalInterviewDirectVisionChanged: (callback: (enabled: boolean) => void) => () => void;
   getLogFilePath: () => Promise<string | null>;
   openLogFile: () => Promise<{ success: boolean; error?: string }>;
 
@@ -2310,42 +2290,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('provider-data-scopes-changed', subscription);
     return () => {
       ipcRenderer.removeListener('provider-data-scopes-changed', subscription);
-    };
-  },
-  getScreenUnderstandingMode: () => ipcRenderer.invoke('get-screen-understanding-mode'),
-  setScreenUnderstandingMode: (mode: 'vision_first' | 'vision_only' | 'private_vision') =>
-    ipcRenderer.invoke('set-screen-understanding-mode', mode),
-  onScreenUnderstandingModeChanged: (
-    callback: (mode: 'vision_first' | 'vision_only' | 'private_vision') => void,
-  ) => {
-    const subscription = (_: any, mode: 'vision_first' | 'vision_only' | 'private_vision') =>
-      callback(mode);
-    ipcRenderer.on('screen-understanding-mode-changed', subscription);
-    return () => {
-      ipcRenderer.removeListener('screen-understanding-mode-changed', subscription);
-    };
-  },
-  getTechnicalInterviewVisionFirst: () =>
-    ipcRenderer.invoke('get-technical-interview-vision-first'),
-  setTechnicalInterviewVisionFirst: (enabled: boolean) =>
-    ipcRenderer.invoke('set-technical-interview-vision-first', enabled),
-  onTechnicalInterviewVisionFirstChanged: (callback: (enabled: boolean) => void) => {
-    const subscription = (_: any, enabled: boolean) => callback(enabled);
-    ipcRenderer.on('technical-interview-vision-first-changed', subscription);
-    return () => {
-      ipcRenderer.removeListener('technical-interview-vision-first-changed', subscription);
-    };
-  },
-  // Deprecated aliases — kept so renderer builds compiled against the old API keep working.
-  getTechnicalInterviewDirectVision: () =>
-    ipcRenderer.invoke('get-technical-interview-direct-vision'),
-  setTechnicalInterviewDirectVision: (enabled: boolean) =>
-    ipcRenderer.invoke('set-technical-interview-direct-vision', enabled),
-  onTechnicalInterviewDirectVisionChanged: (callback: (enabled: boolean) => void) => {
-    const subscription = (_: any, enabled: boolean) => callback(enabled);
-    ipcRenderer.on('technical-interview-vision-first-changed', subscription);
-    return () => {
-      ipcRenderer.removeListener('technical-interview-vision-first-changed', subscription);
     };
   },
   getLogFilePath: () => ipcRenderer.invoke('get-log-file-path'),

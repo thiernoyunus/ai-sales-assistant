@@ -567,18 +567,6 @@ export interface ElectronAPI {
   getProviderDataScopes: () => Promise<{ transcript?: boolean; screenshots?: boolean; reference_files?: boolean; profile_history?: boolean; embeddings?: boolean; post_call_summary?: boolean }>;
   setProviderDataScopes: (scopes: { transcript?: boolean; screenshots?: boolean; reference_files?: boolean; profile_history?: boolean; embeddings?: boolean; post_call_summary?: boolean }) => Promise<{ success: boolean; error?: string }>;
   onProviderDataScopesChanged: (callback: (scopes: { transcript?: boolean; screenshots?: boolean; reference_files?: boolean; profile_history?: boolean; embeddings?: boolean; post_call_summary?: boolean }) => void) => () => void;
-  getScreenUnderstandingMode: () => Promise<'vision_first' | 'vision_only' | 'private_vision'>;
-  setScreenUnderstandingMode: (mode: 'vision_first' | 'vision_only' | 'private_vision') => Promise<{ success: boolean; error?: string }>;
-  onScreenUnderstandingModeChanged: (callback: (mode: 'vision_first' | 'vision_only' | 'private_vision') => void) => () => void;
-  getTechnicalInterviewVisionFirst: () => Promise<boolean>;
-  setTechnicalInterviewVisionFirst: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
-  onTechnicalInterviewVisionFirstChanged: (callback: (enabled: boolean) => void) => () => void;
-  /** @deprecated alias retained for older renderer builds — maps to technicalInterviewVisionFirst */
-  getTechnicalInterviewDirectVision: () => Promise<boolean>;
-  /** @deprecated alias retained for older renderer builds — maps to technicalInterviewVisionFirst */
-  setTechnicalInterviewDirectVision: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
-  /** @deprecated alias retained for older renderer builds — maps to technicalInterviewVisionFirstChanged */
-  onTechnicalInterviewDirectVisionChanged: (callback: (enabled: boolean) => void) => () => void;
   getLogFilePath: () => Promise<string | null>;
   openLogFile: () => Promise<{ success: boolean; error?: string }>;
 

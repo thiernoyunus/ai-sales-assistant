@@ -354,7 +354,7 @@ export class CredentialsManager {
 
     /**
      * True if at least one configured provider is vision-capable.
-     * Used by ScreenUnderstandingService to gate vision_only / decide fallback.
+     * Callers use this to decide whether an image can be sent to a provider at all.
      */
     public anyVisionProviderConfigured(): boolean {
         if (this.credentials.nativelyApiKey) return true;       // Natively API supports vision

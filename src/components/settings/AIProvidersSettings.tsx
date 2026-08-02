@@ -243,8 +243,6 @@ export const AIProvidersSettings: React.FC = () => {
     const [preferredModels, setPreferredModels] = useState<Record<string, string>>({});
 
     // --- Screen Understanding (vision routing) ---
-    const [screenUnderstandingMode, setScreenUnderstandingMode] = useState<'vision_first' | 'vision_only' | 'private_vision'>('vision_first');
-    const [technicalInterviewVisionFirst, setTechnicalInterviewVisionFirst] = useState<boolean>(true);
 
     // --- Cloud Provider Data Scopes (fail-closed cloud share controls) ---
     const [providerDataScopes, setProviderDataScopes] = useState<{ transcript?: boolean; screenshots?: boolean; reference_files?: boolean; profile_history?: boolean; embeddings?: boolean; post_call_summary?: boolean }>({});
@@ -485,35 +483,6 @@ export const AIProvidersSettings: React.FC = () => {
             }
         } catch { /* subscriptions are best-effort */ }
         return () => { for (const u of unsubs) try { u(); } catch { /* noop */ } };
-    }, []);
-
-    // Load Screen Understanding (vision routing) settings
-    useEffect(() => {
-        window.electronAPI?.getScreenUnderstandingMode?.().then(setScreenUnderstandingMode as any).catch(() => { });
-        (window.electronAPI as any)?.getTechnicalInterviewVisionFirst?.()
-            .then(setTechnicalInterviewVisionFirst)
-            .catch(() => {
-                // Fallback to deprecated alias if the renderer is talking to an older main process.
-                window.electronAPI?.getTechnicalInterviewDirectVision?.().then(setTechnicalInterviewVisionFirst).catch(() => { });
-            });
-    }, []);
-
-    useEffect(() => {
-        const api: any = window.electronAPI;
-        if (!api?.onScreenUnderstandingModeChanged) return;
-        const unsubscribe = api.onScreenUnderstandingModeChanged(setScreenUnderstandingMode);
-        return () => unsubscribe?.();
-    }, []);
-
-    useEffect(() => {
-        const api: any = window.electronAPI;
-        const handler = (enabled: boolean) => setTechnicalInterviewVisionFirst(enabled);
-        const unsub1 = api?.onTechnicalInterviewVisionFirstChanged?.(handler);
-        const unsub2 = api?.onTechnicalInterviewDirectVisionChanged?.(handler);
-        return () => {
-            unsub1?.();
-            unsub2?.();
-        };
     }, []);
 
     // Load Cloud Provider Data Scopes and subscribe to cross-window changes
@@ -1646,78 +1615,6 @@ export const AIProvidersSettings: React.FC = () => {
                         )}
                     </div>
                 )}
-
-            {/* Screen Understanding — vision-first routing */}
-            <div className="space-y-5">
-                <div>
-                    <h3 className="text-sm font-bold text-text-primary mb-1">{t('Screen understanding')}</h3>
-                    <p className="text-xs text-text-secondary mb-2">{t('Pick how Natively reads what is on your screen. All paths use the vision-capable AI provider directly; OCR is no longer used.')}</p>
-                </div>
-                <div className="bg-bg-item-surface rounded-xl p-4 border border-border-subtle flex flex-col gap-2">
-                    {([
-                        {
-                            value: 'vision_first' as const,
-                            label: t('Vision first'),
-                            description: t('Recommended. Try every configured vision provider in order; first success wins.'),
-                        },
-                        {
-                            value: 'vision_only' as const,
-                            label: t('Vision only'),
-                            description: t('Stricter. Require a vision-capable provider; never silently drop the screenshot.'),
-                        },
-                        {
-                            value: 'private_vision' as const,
-                            label: t('Private vision (local only)'),
-                            description: t('Use a local vision model (Ollama) only. Never call cloud vision. Clear error if no local provider is configured.'),
-                        },
-                    ]).map(({ value, label, description }) => {
-                        const selected = screenUnderstandingMode === value;
-                        return (
-                            <div
-                                key={value}
-                                onClick={() => {
-                                    setScreenUnderstandingMode(value);
-                                    window.electronAPI?.setScreenUnderstandingMode?.(value);
-                                }}
-                                className={`px-3 py-2 rounded-lg border cursor-pointer transition-colors ${selected ? 'border-emerald-500/50 bg-emerald-500/10' : 'border-border-subtle hover:border-border-muted bg-bg-elevated/50'}`}
-                                role="radio"
-                                aria-checked={selected}
-                            >
-                                <div className="flex items-center justify-between gap-3">
-                                    <div className="flex flex-col">
-                                        <span className={`text-xs font-semibold ${selected ? 'text-emerald-300' : 'text-text-primary'}`}>{label}</span>
-                                        <span className="text-[11px] text-text-secondary leading-snug mt-0.5">{description}</span>
-                                    </div>
-                                    <div className={`w-4 h-4 rounded-full border-2 shrink-0 ${selected ? 'border-emerald-400 bg-emerald-400' : 'border-border-muted'}`} />
-                                </div>
-                            </div>
-                        );
-                    })}
-                    <div className="flex items-center justify-between pt-2 mt-1 border-t border-border-subtle">
-                        <div className="flex flex-col">
-                            <span className="text-xs text-text-primary font-semibold">{t('Technical interview direct vision')}</span>
-                            <span className="text-[11px] text-text-secondary leading-snug mt-0.5">{t('Use the highest-resolution image profile so code text stays sharp in interview mode.')}</span>
-                        </div>
-                        <div
-                            onClick={() => {
-                                const next = !technicalInterviewVisionFirst;
-                                setTechnicalInterviewVisionFirst(next);
-                                const api: any = window.electronAPI;
-                                if (api?.setTechnicalInterviewVisionFirst) {
-                                    api.setTechnicalInterviewVisionFirst(next);
-                                } else {
-                                    window.electronAPI?.setTechnicalInterviewDirectVision?.(next);
-                                }
-                            }}
-                            className={`w-9 h-5 rounded-full relative transition-colors cursor-pointer shrink-0 ${technicalInterviewVisionFirst ? 'bg-emerald-500' : 'bg-bg-toggle-switch border border-border-muted'}`}
-                            role="switch"
-                            aria-checked={technicalInterviewVisionFirst}
-                        >
-                            <div className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${technicalInterviewVisionFirst ? 'translate-x-4' : 'translate-x-0'}`} />
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             {/* Cloud Provider Data Scopes — fail-closed cloud share controls */}
             <div className="space-y-5">

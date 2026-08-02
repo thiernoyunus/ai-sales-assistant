@@ -736,79 +736,8 @@ export class LLMHelper {
     });
     await this.modelVersionManager.initialize();
     console.log(this.modelVersionManager.getSummary());
-    // Register this instance for VisionProviderRegistry (vision-first screen pipeline).
-    // Registry calls a global accessor instead of constructing its own LLMHelper, so
-    // there is exactly one live helper per Electron process with the user's keys/state.
-    try {
-      (global as any).__nativelyGetLLMHelper = () => this;
-    } catch {
-      // global isn't writable in some test contexts; ignored.
-    }
   }
 
-  // ─── Vision invocation surface (Phase 3 — VisionProviderRegistry) ────────
-  //
-  // These thin wrappers expose the existing provider implementations to the
-  // vision-first fallback chain. The underlying methods are private to avoid
-  // accidental misuse from other call sites; the vision pipeline goes through
-  // these named entry points so the surface stays auditable.
-
-  public async runVisionRequest(
-    providerId: 'natively' | 'openai' | 'claude' | 'gemini_flash_lite' | 'gemini_flash' | 'gemini_pro' | 'groq_scout' | 'custom',
-    userPrompt: string,
-    systemPrompt: string,
-    imagePath: string,
-  ): Promise<string> {
-    switch (providerId) {
-      case 'natively':
-        return this.generateWithNatively(userPrompt, systemPrompt, [imagePath]);
-      case 'openai':
-        return this.generateWithOpenai(userPrompt, systemPrompt, [imagePath]);
-      case 'claude':
-        return this.generateWithClaude(userPrompt, systemPrompt, [imagePath]);
-      case 'groq_scout':
-        return this.generateWithGroqMultimodal(userPrompt, [imagePath], systemPrompt);
-      case 'gemini_flash_lite':
-      case 'gemini_flash':
-      case 'gemini_pro': {
-        const fs = await import('node:fs/promises');
-        const b64 = await fs.readFile(imagePath, 'base64');
-        const contents: any[] = [
-          { text: `${systemPrompt}\n\n${userPrompt}` },
-          { inlineData: { mimeType: 'image/jpeg', data: b64 } },
-        ];
-        const modelId = providerId === 'gemini_flash_lite'
-          ? GEMINI_FLASH_LITE_MODEL
-          : providerId === 'gemini_flash'
-            ? GEMINI_FLASH_MODEL
-            : GEMINI_PRO_MODEL;
-        return this.generateContent(contents, modelId);
-      }
-      case 'custom': {
-        if (!this.customProvider) {
-          throw new Error('No custom provider configured');
-        }
-        return this.executeCustomProvider(
-          this.customProvider.curlCommand,
-          `${systemPrompt}\n\n${userPrompt}`,
-          systemPrompt,
-          userPrompt,
-          '',
-          imagePath,
-        );
-      }
-      default:
-        throw new Error(`runVisionRequest: unknown providerId ${providerId}`);
-    }
-  }
-
-  /**
-   * Read-only accessor for the active custom provider — used by VisionProviderRegistry
-   * to decide whether the provider is configured and whether multimodal is enabled.
-   */
-  public getActiveCustomProvider(): CustomProvider | null {
-    return this.customProvider;
-  }
 
   /**
    * Scrub all API keys from memory to minimize exposure window.
