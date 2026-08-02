@@ -4,12 +4,20 @@
 
 **Status:** Phase 0 done (docs/positioning). Phase 1 done (clean deletions). Phase 2 in progress. Based on a full-repo audit (Jul 2026).
 
-**Phase 2 progress**
+**Phase 2 progress — complete, ~8,200 lines removed**
 - [x] `ProcessingHelper` — the dead `processScreenshots()` interview path removed, along with the four LLMHelper methods only it used. The credential bootstrap stays put under its original name; extracting it to `CredentialBootstrap.ts` would have been a ~50-file rename for no behavior change.
 - [x] Verified code execution (`llm/codeVerification/*`) removed end to end — engine, IPC, preload, renderer badge/correction UI, and the settings toggle. −4,289 lines.
-- [ ] `HindsightManager` — already gone; no shim needed.
-- [ ] `services/screen/*` vision + OCR chain (~2,400 lines) and the screenshot-solve path (`ScreenshotHelper`, `CropperWindowHelper`, `Cropper.tsx`, ~1,800 lines).
+- [x] Vision/OCR chain removed — `ScreenUnderstandingService`, both vision provider files, the OCR providers, `ImageHashService`, `visionPrompts`, their tests and fixtures, the `screenUnderstandingMode` setting with its legacy migration, and the AI Providers settings panel. −3,870 lines.
+- [x] `HindsightManager` — already gone; no shim needed.
+- [x] Dead `AppState` members (`problemInfo`, `hasDebugged`, `getScreenshotHelper`) and the renderer's vision-provenance state.
 - [ ] `llm/codingStreamGate.ts` — still used by the coding chat path; retires with Phase 4.
+
+**Two deviations from this plan, both deliberate:**
+
+1. **`ScreenshotHelper` / `CropperWindowHelper` / `Cropper.tsx` were kept**, though §2 lists them under the screenshot-solve path. The *solve* half (`ProcessingHelper.processScreenshots`) is gone. The *capture* half is a live feature with its own keyboard shortcut and area cropper, feeding image attachment on a question via `take-screenshot` and the screenshot queues. Deleting it removes the ability to ask about anything on screen — plausibly useful when a prospect shares a slide. **Needs a product call.**
+2. **`ImageOptimizer` was kept** — it is one of the "2 shims" §2 excludes, and it is still live for image attachments in `LLMHelper` and `ipcHandlers`.
+
+Note the vision removal means nothing populates `ScreenContext` any more. The interface survives because four signatures thread it through and `PromptAssembler` still renders a block when given one, so a future screen-share reader can reuse the shape.
 
 ---
 
