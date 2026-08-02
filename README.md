@@ -17,13 +17,10 @@ If you’re looking for a hosted desktop recording API, consider checking out [R
 [![License](https://img.shields.io/badge/License-Personal%20Use%20Source-blue?style=flat-square)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-macOS%20%7C%20Windows-blueviolet?style=flat-square)](https://github.com/Natively-AI-assistant/natively-cluely-ai-assistant/releases)
 [![Downloads](https://img.shields.io/github/downloads/evinjohnn/natively-cluely-ai-assistant/total?style=flat-square&color=success)](https://github.com/Natively-AI-assistant/natively-cluely-ai-assistant/releases)
-![Repo Views](https://img.shields.io/badge/Views-1.2M-orange?style=flat-square)
 [![Stars](https://img.shields.io/github/stars/evinjohnn/natively-cluely-ai-assistant?style=flat-square&color=gold)](https://github.com/Natively-AI-assistant/natively-cluely-ai-assistant)
 ![Status](https://img.shields.io/badge/Status-active-success?style=flat-square)
 [![Telegram Chat](https://img.shields.io/badge/Telegram-Chat-229ED9?style=flat-square&logo=telegram&logoColor=white)](https://t.me/nativelyaichat)
 [![LinkedIn Company](https://img.shields.io/badge/LinkedIn-Company-0077B5?style=flat-square&logo=linkedin&logoColor=white)](https://www.linkedin.com/company/nativley-ai)
-
-> **Competitors charge $20–$149/month, store your data on their servers, and one already breached 83,000 users.** Natively costs $0, runs locally, and has never had a data breach. Your keys, your models, your machine.
 
 <p align="center">
   <a href="https://natively.software">
@@ -42,93 +39,56 @@ If you’re looking for a hosted desktop recording API, consider checking out [R
 
 <small>Requires macOS 12+ (Apple Silicon & Intel) or Windows 10/11</small>
 
-<br/>
-
-**<span style="color: #ef4444">👥 9,000+ Users</span>** &nbsp;·&nbsp; **<span style="color: #f97316">🔥 700+ DAU</span>** &nbsp;·&nbsp; **<span style="color: #22c55e">💸 $0 vs $149/mo rivals</span>** &nbsp;·&nbsp; **<span style="color: #3b82f6">⚡ <500ms latency</span>** &nbsp;·&nbsp; **<span style="color: #a855f7">🛡️ 0 data breaches</span>**
-
 </div>
+
+---
+
+## What Is Natively?
+
+**Natively** is a desktop app that sits on top of your sales calls (Zoom, Meet, Teams, or in person) and listens along with you. While the conversation is happening, it:
+
+- Suggests what to say next when a prospect raises an objection (price, timing, security, a competitor)
+- Surfaces the right discovery question at the moment the conversation opens up
+- Flags buying signals — intent, urgency, evaluation language — as they're said
+- Answers spec and pricing questions by reading your own product decks, pricing sheets, battlecards, and case studies, instead of guessing
+
+After the call, it turns the transcript into structured notes (account context, pain points, objections, budget/timeline/authority, next steps) and drafts a follow-up email grounded in what was actually said.
+
+It runs on your machine, keeps your data local, and works with whichever AI provider you already have a key for.
 
 ---
 
 ## Why Natively?
 
-While other tools act as simple API wrappers, Natively is a complete, native intelligence system built specifically for live sales calls.
-
-- **Native Audio Capture (<500ms):** Built with Rust and Zero-Copy ABI transfers, bypassing generic web-audio limitations for ultra-low latency.
-- **Local Whisper STT (On-Device):** 100% on-device speech-to-text using optimized ONNX models (Moonshine-tiny, Moonshine-base, Whisper-large-v3-turbo, distil-large-v3). Uses hardware acceleration (CoreML/Metal GPU on Apple Silicon, DirectML on Windows, quantized int8 on CPU) with zero cloud fees or data exposure.
-- **Dual-Channel Intelligence:** Distinct pipelines for system audio (what they say) and your microphone (what you dictate) ensuring perfect transcription without room noise.
-- **Invisible During Screen Share:** Your copilot window doesn't appear when you share your screen with a prospect — they see your demo, not your notes.
-- **Sales Call Intelligence:** A dedicated sales mode with objection handling, discovery prompts, buying-signal detection, and a note template that captures account context, pain points, objections, budget/timeline/authority, and next steps.
-- **Custom Context & Notes:** A dedicated free-form notes area for deal context and talk tracks (up to 8,000 characters), automatically injected into real-time LLM prompts.
-- **Rolling Context:** We don't just transcribe; we maintain a "memory window" of the conversation for smarter answers.
-- **Local RAG Memory:** We embed your meetings locally using SQLite vector search so you can ask, "What did John say about the API last week?"
-- **Reference Files:** Deeply integrate PDFs, DOCX, and TXT files as real-time context.
-- **Rich Dashboard:** A full UI to manage, search, and export your history—not just a floating window.
-- **Fully Offline Capable:** Don't trust the cloud? Run Natively 100% offline using local Ollama models and local Whisper STT.
-
----
-
-### ⭐ Star this repo — it matters
-
-Every star pushes Natively higher in GitHub search, helping sales teams find a private, local-first alternative to tools that store their call data on someone else's server.
-
-[![Star Natively](https://img.shields.io/github/stars/evinjohnn/natively-cluely-ai-assistant?style=for-the-badge&color=gold&label=Star%20on%20GitHub)](https://github.com/Natively-AI-assistant/natively-cluely-ai-assistant)
-
-</div>
-
----
-
-## Demo
-
-![Natively Demo - Real-time sales call copilot and transcription](assets/natively-ai-meeting-assistant-demo.gif)
-
-This demo shows **a complete live call scenario**:
-
-- Real-time transcription as the call happens
-- Rolling context awareness across multiple speakers
-- Instant generation of what to say next
-- Follow-up questions and concise responses
-- All happening live, without recording or post-processing
+- **Native Audio Capture:** Built with a Rust audio module using zero-copy data transfer (no extra copying between the audio driver and the app), so transcription keeps up with a live conversation instead of lagging behind it.
+- **Local Whisper Speech-to-Text (on-device):** Runs speech-to-text models directly on your computer (no audio sent to a cloud service) with hardware acceleration on Apple Silicon and Windows GPUs, or a quantized CPU fallback.
+- **Dual-Channel Intelligence:** Separate audio pipelines for what the prospect says (system audio) and what you say into your microphone, so the transcript stays accurate even with room noise.
+- **Invisible During Screen Share:** The copilot window doesn't appear when you share your screen with a prospect — they see your demo, not your notes.
+- **Sales Call Intelligence:** A dedicated sales mode with objection handling, discovery prompts, buying-signal detection, and a structured note template.
+- **Custom Context & Notes:** A free-form notes area (up to 8,000 characters) for deal context and talk tracks, automatically included in the AI's context for every answer.
+- **Rolling Context:** The app keeps a running memory of the conversation so answers stay relevant as the call goes on, not just the last thing said.
+- **Local RAG Memory:** Your past meetings are indexed locally (an on-device search index, not a cloud database) so you can ask "what did John say about the API last week?"
+- **Reference Files:** Upload PDFs, Word docs, or text files — product specs, pricing sheets, battlecards — and the AI answers from them in real time.
+- **Rich Dashboard:** A full window to search, review, and export your call history, not just a floating overlay.
+- **Fully Offline Capable:** Run Natively entirely offline using local Ollama models and local Whisper speech-to-text if you'd rather not send anything to the cloud.
 
 ---
 
 ## Natively API (Hosted Tier)
 
-**Stop managing four separate services. One key. Zero configuration.**
+**One key instead of four separate accounts.**
 
-Are you managing separate accounts for your AI reasoning, live transcription, fast inference, and web search? Juggling multiple API keys, rate limits, and invoices across completely different categories of tools is unnecessary overhead. Natively API replaces all of those categories with **one flat subscription**.
+If you'd rather not manage separate accounts and keys for AI reasoning, live transcription, fast inference, and web search, Natively API bundles them into a single flat subscription:
 
-Under the hood, Natively API connects you to the absolute best models for the optimal user experience:
+- **AI models:** Claude, OpenAI, Gemini, and Groq
+- **Speech-to-text:** Google Chirp, ElevenLabs Scribe, and Deepgram Nova
 
-- **Backend AI Models**: Claude, OpenAI, Gemini, and Groq.
-- **Premium STT Models**: Google Chirp 2/3, ElevenLabs Scribe v2, and Deepgram Nova-3.
-
-### 4 Categories → 1 Key
-
-**Your current unbundled stack:**
-
-- **AI Intelligence (GPT/Claude/Gemini):** per-token billing and usage anxiety
-- **Lightning-Fast Inference (Groq/Llama):** strict rate limits to monitor
-- **Real-Time Transcription (Deepgram/Google STT):** separate key + quota
-- **Web Search & Research (Tavily/Perplexity):** yet another subscription
-
-**Replaced by Natively API:**
-
-- **AI chat, transcription & web search** — all included
-- **One flat subscription.** Zero surprise bills. Starts at $8/mo.
-- **Single key.** Zero rotation. Zero configuration.
-
-### API Plan Comparison
-
-| Feature                               | Standard ($8/mo) | Pro ($15/mo) | Max ($25/mo) | Ultra ($35/mo) |
-| :------------------------------------ | :--------------- | :----------- | :----------- | :------------- |
-| **All-in-One Cloud AI Access**        | ✅ Yes           | ✅ Yes       | ✅ Yes       | ✅ Yes         |
-| **Real-Time Transcription**           | ✅ Yes           | ✅ Yes       | ✅ Yes       | ✅ Yes         |
-| **Included Natively Pro Desktop App** | ❌ No            | ✅ Yes       | ✅ Yes       | ✅ Yes         |
-| **Premium Support**                   | ❌ No            | ✅ Yes       | ✅ Yes       | ✅ Yes         |
-| **Higher Monthly Quotas**             | ❌ No            | ✅ Yes       | ✅ Yes       | ✅ Yes         |
-
-**Don't start the long way.** Skip the 20-minute manual setup. One Natively subscription skips all of it — AI, transcription, and web search are ready immediately.
+| Plan | Price | Includes |
+| :--- | :--- | :--- |
+| Standard | $8/mo | AI + transcription access |
+| Pro | $15/mo | + the Natively Pro desktop app, priority support |
+| Max | $25/mo | + higher monthly quotas |
+| Ultra | $35/mo | + highest monthly quotas |
 
 <p align="center">
   <a href="https://checkout.dodopayments.com/buy/pdt_0NbFixGmD8CSeawb5qvVl">
@@ -149,45 +109,7 @@ Under the hood, Natively API connects you to the absolute best models for the op
 
 ## Natively Pro
 
-While Natively is **free for personal, educational, research, and non-commercial use**, we also offer a **Pro Edition** (available as **Lifetime or Yearly** subscriptions) designed for sales teams and power users. Purchasing a Pro license directly supports the continued development of Natively.
-
-### 🪙 Unlock Natively Pro with $NAT Token
-
-We've launched the official **$NAT token** on Printr! Holders who maintain a specific balance of `$NAT` tokens in their connected wallet automatically unlock access to all **Natively Pro** features.
-
-👉 **[Trade $NAT on Printr](https://app.printr.money/trade/0xba1e50273ec14ca52b3fa64a5054c39470c2835392c6ecd06876f5bccd597d7b)**
-
-### Free vs Pro Feature Comparison
-
-| Feature                                             | Natively Free | Natively Pro |
-| :-------------------------------------------------- | :-----------: | :----------: |
-| **Bring Your Own Key (BYOK) Models**                |      ✅       |      ✅      |
-| **Local AI Support (Ollama)**                       |      ✅       |      ✅      |
-| **Local Whisper STT (On-Device)**                   |      ✅       |      ✅      |
-| **Real-Time Speech-to-Text (<500ms)**               |      ✅       |      ✅      |
-| **Multi-Key API Pools & Key Rotation**              |      ✅       |      ✅      |
-| **Profile Intelligence Router (v2)**                |      ✅       |      ✅      |
-| **Eager Code UI Expansion**                         |      ✅       |      ✅      |
-| **Live Follow-Up Resolver**                         |      ✅       |      ✅      |
-| **Real-Time Latency Tracing**                       |      ✅       |      ✅      |
-| **Two New Meeting UI Styles (Liquid Glass/Modern)** |      ✅       |      ✅      |
-| **Live Contextual Assistant**                       |      ✅       |      ✅      |
-| **Screenshot & Slide OCR Analysis**                 |      ✅       |      ✅      |
-| **Undetectable & Stealth Modes**                    |      ✅       |      ✅      |
-| **Meeting Dashboard & Offline RAG History**         |      ✅       |      ✅      |
-| **Stateful "Intelligence OS"**                     |      ✅       |      ✅      |
-| **Spoken Answer Humanizer**                         |      ✅       |      ✅      |
-| **Sandboxed Code Verification**                     |      ✅       |      ✅      |
-| **Hindsight Long-Term Memory (LTM)**                |      ❌       |      ✅      |
-| **Automated Company Research & Dossiers**           |      ❌       |      ✅      |
-| **Live Salary & Offer Negotiation Copilot**         |      ❌       |      ✅      |
-| **Custom Persona Modes (Sales, Tech, etc.)**        |      ❌       |      ✅      |
-| **Custom Context & Notes**                          |      ❌       |      ✅      |
-| **Reference Files (PDF/DOCX/TXT upload)**           |      ❌       |      ✅      |
-| **Phone Link Companion App**                        |      ❌       |      ✅      |
-| **Auto-Calendar & Task Sync**                       |      ❌       |      ✅      |
-| **Speaker Diarization**                             |      ❌       |      ✅      |
-| **Priority Feature Access & Support**               |      ❌       |      ✅      |
+Natively is **free for personal, educational, research, and non-commercial use**. **Natively Pro** is a paid license (Lifetime or Yearly) for sales teams and power users who want a commercial license and priority support; buying one directly funds continued development.
 
 <p align="center">
   <a href="https://checkout.dodopayments.com/buy/pdt_0NbHo6EnXlNPqNcZ14OTi">
@@ -198,34 +120,25 @@ We've launched the official **$NAT token** on Printr! Holders who maintain a spe
   </a>
 </p>
 
-### What's New in v2.8.0 (Latest Release)
-
-Version 2.8.0 introduces the stateful "Intelligence OS" control plane, Hindsight long-term memory, deterministic answer humanization, sandboxed local code execution, and low-latency regional STT relay migration:
-
-- **Stateful "Intelligence OS"**: Transitioned to a stateful control plane with mode-aware priors that automatically route queries and filter context based on your active task.
-- **Hindsight Long-Term Memory (LTM)**: Integrates a secure local sidecar vector database that indexes past meetings, custom profiles, and documents, retrieving relevant semantic matches dynamically.
-- **Spoken Answer Humanizer**: Deterministically rewrites raw LLM outputs to strip corporate jargon, filter out structure bugs (em-dashes, empty bullets), and optimize prose for natural spoken flow.
-- **Sandboxed Code Verification**: Automatically extracts and executes Python, JS, and SQLite code in isolated local subprocesses, verifying correctness and auto-correcting errors before displaying a verified badge.
-- **Regional STT-Relay Migration**: Migrated realtime audio transcription to low-latency regional VPS hosts with transaction-scoped quota advisory locks to prevent double-billing.
-- **macOS 12 (Monterey) Compatibility Guard**: Added safety checks to prevent runtime crashes during Whisper local speech-to-text initialization on older macOS versions.
+See the [License](#license) section for what the free tier already covers under the personal-use license, and reach out to natively.contact@gmail.com for commercial licensing questions.
 
 ## Table of Contents
 
+- [What Is Natively?](#what-is-natively)
 - [Why Natively?](#why-natively)
-- [Demo](#demo)
 - [Natively API (Hosted Tier)](#natively-api-hosted-tier)
 - [Natively Pro](#natively-pro)
-- [What's New in v2.8.0](#whats-new-in-v280-latest-release)
 - [Privacy & Security](#privacy--security-core-design-principle)
 - [Installation](#installation-developers--contributors)
-- [AI Providers](#ai-providers)
+- [Development Setup](#development-setup)
 - [Key Features](#key-features)
 - [Meeting Intelligence Dashboard](#meeting-intelligence-dashboard)
 - [Roadmap](#roadmap)
 - [Use Cases](#use-cases)
+- [Architecture Overview](#architecture-overview)
 - [Technical Details](#technical-details)
-- [Known Limitations](#known-limitations)
 - [Responsible Use](#responsible-use)
+- [Known Limitations](#known-limitations)
 - [Contributing](#contributing)
 - [License](#license)
 - [FAQ](#faq)
@@ -233,43 +146,16 @@ Version 2.8.0 introduces the stateful "Intelligence OS" control plane, Hindsight
 
 ---
 
-## What Is Natively?
-
-**Natively** is a **desktop AI copilot for live sales calls**:
-
-- Discovery calls
-- Demos
-- Pricing and objection conversations
-- Renewals and expansion calls
-- Client check-ins
-
-It provides:
-
-- Live answers
-- Rolling conversational context
-- Screenshot and document understanding
-- Real-time speech-to-text
-- Instant suggestions for what to say next
-
-All while remaining **invisible, fast, and privacy-first**.
-
----
-
 ## Privacy & Security (Core Design Principle)
 
 - Source-available under the Natively Personal Use Source License v1.0
-- Bring Your Own Keys (BYOK)
-- Local AI option (Ollama)
-- All data stored locally
-- Limited anonymous telemetry (basic GA4 counts)
-- No user data tracking
+- Bring Your Own Keys (BYOK) — connect your own AI and speech-to-text accounts
+- Local AI option (Ollama) for fully offline use
+- All transcripts, notes, and search indexes stored locally on your machine
+- Limited anonymous telemetry (basic usage counts only)
 - No hidden uploads
 
-You explicitly control:
-
-- What runs locally
-- What uses cloud AI
-- Which providers are enabled
+You control what runs locally, what uses cloud AI, and which providers are enabled.
 
 ---
 
@@ -303,60 +189,32 @@ You explicitly control:
 
 ### AI Credentials & Speech Providers
 
-**Natively is 100% free to use with your own keys.**  
-Connect **any** speech provider and **any** LLM. No subscriptions, no markups, no hidden fees. All keys are stored locally.
+**Natively is 100% free to use with your own keys.** Connect any speech provider and any LLM. No subscriptions, no markups, no hidden fees. All keys are stored locally.
 
-### Unlimited Free Transcription (Whisper, Google, Deepgram)
+**Speech-to-text providers:** Soniox, Google Cloud Speech-to-Text, Groq, OpenAI Whisper, Deepgram, ElevenLabs, Azure Speech Services, IBM Watson. You only need one to get started — Google STT, Groq, or Deepgram tend to give the fastest real-time results.
 
-- **Soniox** (API Key) - _Ultra-fast, highly accurate streaming STT_
-- **Google Cloud Speech-to-Text** (Service Account)
-- **Groq** (API Key)
-- **OpenAI Whisper** (API Key)
-- **Deepgram** (API Key)
-- **ElevenLabs** (API Key)
-- **Azure Speech Services** (API Key + Region)
-- **IBM Watson** (API Key + Region)
+**AI (LLM) providers:**
 
-### AI Engine Support (Bring Your Own Key)
-
-Connect Natively to **any** leading model or local inference engine.
-
-| Provider                     | Best For                                                    |
-| :--------------------------- | :---------------------------------------------------------- |
-| **Gemini 3.1 Series**        | Recommended: Massive context window (2M tokens) & low cost. |
-| **OpenAI (GPT-5.4 & o3)**    | High reasoning capabilities.                                |
-| **Anthropic (Claude 4.6)**   | Coding & complex nuanced tasks.                             |
-| **Groq (Llama 3.3/Scout 4)** | Insane speed (near-instant answers) & screenshot analysis.  |
-| **Ollama / LocalAI**         | 100% Offline & Private (No API keys needed).                |
-| **OpenAI-Compatible**        | Connect to _any_ custom endpoint (vLLM, LM Studio, etc.)    |
-
-> **Note:** You only need ONE speech provider to get started. We recommend **Google STT** ,**Groq** or **Deepgram** for the fastest real-time performance.
-
----
+| Provider | Best For |
+| :--- | :--- |
+| **Gemini** | Large context window and low cost |
+| **OpenAI (GPT-5 series)** | High reasoning capability |
+| **Anthropic (Claude)** | Nuanced, complex tasks |
+| **Groq (Llama)** | Very fast responses |
+| **Ollama / LocalAI** | 100% offline and private, no API keys needed |
+| **OpenAI-compatible endpoints** | Connect to any custom endpoint (vLLM, LM Studio, OpenRouter, etc.) |
 
 #### To Use Google Speech-to-Text (Optional)
 
-Your credentials:
+Your credentials never leave your machine and are used only locally by the app.
 
-- Never leave your machine
-- Are not logged, proxied, or stored remotely
-- Are used only locally by the app
+What you need:
 
-What You Need:
-
-- Google Cloud account
-- Billing enabled
-- Speech-to-Text API enabled
-- Service Account JSON key
-
-Setup Summary:
-
-1. Create or select a Google Cloud project
-2. Enable Speech-to-Text API
-3. Create a Service Account
-4. Assign role: `roles/speech.client`
-5. Generate and download a JSON key
-6. Point Natively to the JSON file in settings
+1. A Google Cloud account with billing enabled
+2. The Speech-to-Text API enabled on a project
+3. A Service Account with the `roles/speech.client` role
+4. A downloaded JSON key for that Service Account
+5. Point Natively to the JSON file in Settings
 
 ---
 
@@ -383,7 +241,7 @@ npm run build:native
 
 ### Environment Variables
 
-Create a `.env` file:
+Create a `.env` file (see `.env.example` for the full list of optional variables):
 
 ```env
 # Cloud AI
@@ -405,9 +263,6 @@ IBM_WATSON_REGION=us-south
 USE_OLLAMA=true
 OLLAMA_MODEL=llama3.2
 OLLAMA_URL=http://localhost:11434
-
-# Default Model Configuration
-DEFAULT_MODEL=gemini-3.1-flash-lite-preview
 ```
 
 ### Run (Development)
@@ -426,118 +281,79 @@ This runs: Vite build → TypeScript compile → native module build → electro
 
 ---
 
-### AI Providers
-
-- **Custom (BYO Endpoint):** Paste any cURL command to use OpenRouter, DeepSeek, or private endpoints.
-- **Ollama (Local):** Zero-setup detection of local models (Llama 3, Mistral, Gemma).
-- **Dynamic Model Selection:** Preferred models (OpenAI, Anthropic, Google) now automatically appear across the app.
-- **Google Gemini:** First-class support for the Gemini 3.1 series.
-- **OpenAI:** GPT-5.4 and o3 series support with optimized system prompts.
-- **Anthropic:** Claude 4.6 series support with corrected max_tokens.
-- **Groq:** Ultra-fast text inference with Llama 3.3, and screenshot analysis using Llama 4 Scout.
-
----
-
 ## Key Features
 
 ### Invisible Desktop Assistant
 
 - Always-on-top translucent overlay
 - Instantly hide/show with shortcuts
-- Works across all applications
+- Doesn't appear in your own screen share, so a prospect never sees your notes
 
 ### Real-time Sales Copilot
 
-- Real-time speech-to-text (**<500ms latency**)
-- **Fast Response Mode**: Ultra-fast text responses using Groq Llama 3.3.
-- **Multilingual Support**: Choose from various response languages, and set speech recognition matching specific accents and dialects.
-- **Anti-Chatbot Persona System**: Refined system prompts and negative constraints keep responses concise and conversational — something you can actually say out loud on a call, with no robotic preambles.
-- Context-aware Memory (RAG) across past calls
-- Instant answers as questions are asked
-- **Interim/Final Bridging**: Manual transcript finalization and interim bridging during recordings for higher accuracy.
-- **Smart Recap & Summaries**: Instant call minutes and executive summaries.
-- **TinyPrompts™ Engine**: Specialized prompt architecture for local SLMs (4B-8B params), ensuring instruction following and reasoning parity with cloud models on local hardware.
-- **Dynamic Note Templates**: Structured call notes generated automatically against the sales schema — account context, pain, objections, budget/timeline/authority, next steps.
-- **Pricing Guardrails**: The assistant will not volunteer your walk-away price, discount floor, or negotiating position, even when asked directly mid-call.
+- A dedicated sales mode: objection handling, discovery prompts, and buying-signal detection, tuned to sound like something you'd actually say out loud — not a chatbot
+- Structured call notes generated automatically: account context, pain points, objections, budget/timeline/authority, and next steps
+- **Pricing guardrails:** the assistant won't volunteer your walk-away price, discount floor, or negotiating position, even if asked directly mid-call
+- Multilingual support for both spoken language and response language
 
 ### Company & Prospect Research
 
-- Pull a dossier on the account you're about to talk to
-- Ground answers in your own product decks, pricing sheets, case studies, and battlecards rather than model guesswork
-- **Reference Files & Custom Context**: Upload PDFs, DOCX files, or type custom instructions to give the AI real-time context on the deal.
+- Ground answers in your own product decks, pricing sheets, case studies, and battlecards rather than the model's guesswork
+- Upload PDFs, DOCX, or TXT files, or type custom notes, to give the AI real-time context on a specific deal
 
-### Skills — Custom AI Personas
+### Skills — Custom AI Instructions
 
-Create local `SKILL.md` files to give the AI specialized instructions for any task. Skills are invoked directly from the overlay chat:
+Drop a `SKILL.md` file into your skills folder to give the AI reusable, specialized instructions (for example, a MEDDIC or Challenger-style qualification checklist), and invoke it mid-call from the overlay chat:
 
-- Type `/` or `$` to open a live skill picker — filtered autocomplete with arrow-key navigation, just like Claude Code's slash commands
-- Or type `/skill-name` directly to activate a skill inline
-- Built-in: **Humanize AI Text** — strips AI writing patterns and makes output sound human
+- Type `/` or `$` to open a live skill picker with filtered, arrow-key navigation
+- Or type `/skill-name` directly to activate it inline
+- Built-in: **Humanize AI Text** — strips AI writing patterns so drafts sound human
 - Add your own: drop a `SKILL.md` with a YAML frontmatter `name:` and `description:` into `~/Library/Application Support/natively/skills/<folder>/`
 
 ### Contextual Actions
 
-- What should I answer?
-- Shorten response
-- Recap conversation
-- Suggest follow-up questions
-- Manual or voice-triggered prompts
+One-tap or voice-triggered prompts for "what should I answer?", shortening a response, recapping the conversation so far, or suggesting a follow-up question.
 
-### Seamless Integrations & Sync
+### Screenshots as Context
 
-- **Phone Link:** Use your iOS/Android device as a wireless remote microphone or companion screen.
-- **Calendar Prep:** Auto-syncs with Google Calendar and Outlook to prepare context before meetings.
-- **Smart Task Export:** Send extracted action items directly to Jira, Linear, or Asana.
-- **Speaker Diarization:** Real-time speaker identification tags individual speakers by name automatically.
-- **Codex CLI:** Execute terminal tasks, manage workspace files, and run sandboxed code via native Codex integration.
+- Capture an area of your screen (keyboard shortcut + crop tool) and attach it to a question — useful when a prospect shares a slide or a spec sheet you want the AI to read alongside the conversation
+
+### Calendar Prep
+
+- Auto-syncs with Google Calendar and Outlook (read-only) to pull meeting details before a call starts
 
 ### Dual-Channel Audio Intelligence
 
-Natively understands that _listening_ to a meeting and _talking_ to an AI are different tasks. We treat them separately:
+Listening to a call and talking to the AI are different jobs, so Natively keeps them on separate channels:
 
-- **System Audio (The Meeting):** Captures high-fidelity audio directly from your OS (fully supported on both macOS and Windows). It "hears" what your colleagues are saying without interference from your room noise.
-- **Sample Rate Auto-Detection**: Dynamically detects and syncs true hardware sample rates (e.g., automatically handling 48kHz audio interfaces or external microphones without distortion or downsampling artifacts).
-- **Two-Stage Silence Processing**: Combines adaptive RMS thresholds with **WebRTC Machine Learning VAD** to reject typing and fan noise.
-- **Microphone Input (Your Voice):** A dedicated channel for your voice commands and dictation. Toggle it instantly to ask Natively a private question without muting your meeting software.
+- **System audio (the call):** captures what the other side of the conversation says, supported on both macOS and Windows, without your own room noise bleeding in
+- **Microphone (your voice):** a dedicated channel for dictating a private question to Natively without muting your meeting software
+- Automatically detects your microphone's true sample rate so audio isn't distorted
+- Filters out typing and fan noise using a machine-learning voice-activity detector
 
 ### Spotlight Search & Customization
 
-- Global activation shortcut (`Cmd+K` / `Ctrl+K`)
-- **Custom Key Bindings**: Customize global shortcuts for easier control.
-- Instant answer overlay
-- Upcoming meeting readiness
+A global shortcut (`Cmd+K` / `Ctrl+K`, customizable) opens an instant answer overlay from anywhere.
 
 ### Local RAG & Long-Term Memory
 
-- **Full Offline RAG:** All vector embeddings and retrieval happen locally (SQLite + `sqlite-vec`).
-- **Semantic Search:** innovative "Smart Scope" detects if you are asking about the current meeting or a past one.
-- **Sliding-Window RAG**: 50-token semantic overlap to prevent context loss across chunk boundaries.
-- **Epoch Summarization**: Smarter transcript memory management instead of hard truncation — no more losing early meeting context.
-- **Global Knowledge:** Ask questions across _all_ your past meetings ("What did we decide about the API last month?").
-- **Automatic Indexing:** Meetings are automatically chunked, embedded, and indexed in the background.
-
-### Advanced Privacy & Stealth
-
-- **Undetectable Mode:** Instantly hide from dock/taskbar with visually locked selector to prevent state mismatches.
-- **Cross-Window State Sync**: Real-time state synchronization across Settings, Launcher, and Overlay windows.
-- **Process Disguise (Masquerading):** Instantly change the app to look like Terminal, System Settings, Activity Monitor, or other harmless utilities to completely evade detection during screen sharing.
-- **Security Hardening**: API keys are scrubbed from memory on app quit and credentials manager overwrites key data before disposal.
-- **API Rate Limiting**: Token-bucket algorithm (burst/refill) to prevent 429 errors on free-tier providers.
-- **Local-Only Processing:** All data stays on your machine.
+- **Fully offline retrieval:** vector search (a way of finding related passages by meaning, not just keyword) runs locally using SQLite + `sqlite-vec`
+- **Smart Scope:** automatically detects whether you're asking about the current meeting or a past one
+- **Global Knowledge:** ask questions across all your past meetings ("what did we decide about the API last month?")
+- Meetings are automatically chunked, embedded, and indexed in the background as they're recorded
 
 ---
 
 ## Meeting Intelligence Dashboard
 
-Natively includes a powerful, local-first meeting management system to review, search, and manage your entire conversation history.
+Natively includes a local-first meeting management system to review, search, and manage your entire call history.
 
 ![Dashboard Preview](assets/dashboard-preview.png)
 
-- **Meeting Archives:** Access full transcripts of every past meeting, searchable by keywords or dates.
-- **Smart Export:** One-click export of transcripts and AI summaries to **Markdown, JSON, or Text**—perfect for pasting into Notion, Obsidian, or Slack.
-- **Usage Statistics:** Track your token usage and API costs in real-time. Know exactly how much you are spending on Gemini, OpenAI, or Claude.
-- **Audio Separation:** Distinct controls for **System Audio** (what they say) vs. **Microphone** (what you dictate).
-- **Session Management:** Rename, organize, or delete past sessions to keep your workspace clean.
+- **Meeting Archives:** full transcripts of every past call, searchable by keyword or date
+- **Smart Export:** one-click export of transcripts and AI summaries to Markdown, JSON, or plain text
+- **Usage Statistics:** track token usage and API cost per provider in real time
+- **Session Management:** rename, organize, or delete past sessions
 
 ---
 
@@ -546,14 +362,13 @@ Natively includes a powerful, local-first meeting management system to review, s
 ```mermaid
 timeline
     title Natively Product Roadmap
-    section Recently Completed
-        Sales Mode : ✅ Live objection & discovery engine
-        Trial : ✅ 10-Minute Free Trial
+    section Shipped
+        Scope : Narrowed to sales calls only — general + sales mode
+        Sales Mode : Live objection & discovery engine
     section Near-term
-        Scope : Narrow the app to sales calls only
-        Post-Call : LLM-backed qualification extraction
+        Cleanup : Finish narrowing answer types and retire leftover interview code paths
+        Post-Call : LLM-backed qualification (MEDDIC) extraction
         Post-Call : Call coaching and scoring
-        Analytics : Talk-ratio and talk-time
         Battlecards : Data-driven competitor triggers
     section Mid-term
         Knowledge : Account and deal knowledge cards
@@ -563,11 +378,10 @@ timeline
         CRM : Salesforce and HubSpot sync
         Follow-up : Sequences and cadence
         Pipeline : Pipeline review
-        Team : Manager rollups (under review)
 ```
 
 <div align="center">
-  <em>For detailed feature descriptions, see our full <a href="ROADMAP.md">ROADMAP.md</a>.</em>
+  <em>For the full breakdown by item, see <a href="ROADMAP.md">ROADMAP.md</a>.</em>
 </div>
 
 ---
@@ -576,24 +390,24 @@ timeline
 
 ### On the Call
 
-- **Objection Handling:** When a prospect raises price, timing, security, or a competitor, get a validate-reframe-advance response grounded in your own battlecards.
-- **Discovery:** Diagnostic questions surfaced at the moment the conversation opens up, so you ask the better question instead of the next one on your list.
-- **Buying Signals:** Intent, urgency, and evaluation language flagged as it happens.
-- **Spec Recall:** Instant answers on technical specs, integrations, or security posture, pulled from your product docs rather than invented.
+- **Objection Handling:** when a prospect raises price, timing, security, or a competitor, get a validate-reframe-advance response grounded in your own battlecards
+- **Discovery:** diagnostic questions surfaced at the moment the conversation opens up, so you ask the better question instead of the next one on your list
+- **Buying Signals:** intent, urgency, and evaluation language flagged as it happens
+- **Spec Recall:** instant answers on technical specs, integrations, or security posture, pulled from your product docs rather than invented
 
 ### After the Call
 
-- **Structured Notes:** Account context, pain points, buying signals, objections, budget/timeline/authority, and next steps extracted automatically.
-- **Follow-Up Drafts:** A follow-up email that mirrors back the prospect's stated pain and confirms the agreed next step — never inventing pricing or commitments.
-- **Cross-Call Memory:** Ask what a stakeholder said about a requirement three calls ago and get the answer with its source.
+- **Structured Notes:** account context, pain points, buying signals, objections, budget/timeline/authority, and next steps extracted automatically
+- **Follow-Up Drafts:** an email that mirrors back the prospect's stated pain and confirms the agreed next step — never inventing pricing or commitments
+- **Cross-Call Memory:** ask what a stakeholder said about a requirement three calls ago and get the answer with its source
 
 ---
 
 ## Architecture Overview
 
-Natively processes audio, screen context, and user input locally, maintains a rolling context window, and sends only the required prompt data to the selected AI provider (local or cloud).
+Natively processes audio, attached reference files, and screenshots locally, keeps a rolling context window of the conversation, and sends only the data needed for the current answer to the AI provider you've selected (local or cloud).
 
-No raw audio, screenshots, or transcripts are stored or transmitted unless explicitly enabled by the user.
+No raw audio, screenshots, or transcripts are stored or transmitted unless you've explicitly enabled that.
 
 ---
 
@@ -603,22 +417,16 @@ No raw audio, screenshots, or transcripts are stored or transmitted unless expli
 
 - **React, Vite, TypeScript, TailwindCSS**
 - **Electron**
-- **Rust** (native audio with **Zero-Copy ABI Transfers** via `napi::Buffer` — enabling continuous audio capture without V8 garbage collection pressure, achieving significantly lower latency and CPU usage than typical Electron-based competitors)
-- **SQLite** (local storage with `sqlite-vec`)
+- **Rust** for native audio capture, using zero-copy data transfer to keep latency and CPU usage low
+- **SQLite** for local storage, with `sqlite-vec` for vector search
 
-### Supported Models
-
-- **Gemini 3.1 Series**
-- **OpenAI** (GPT-5.4, o3 series)
-- **Claude** (4.6 series)
-- **Ollama** (Llama, Mistral, CodeLlama)
-- **Groq** (Llama 3.3 for text, Llama 4 Scout for OCR)
+See [AI Credentials & Speech Providers](#ai-credentials--speech-providers) above for the full list of supported AI and speech-to-text providers.
 
 ### System Requirements
 
 - **Minimum:** 4GB RAM
 - **Recommended:** 8GB+ RAM
-- **Optimal:** 16GB+ RAM for local AI
+- **Optimal:** 16GB+ RAM if you're running AI models locally
 
 ---
 
@@ -706,14 +514,6 @@ Natively is built on **Privacy-by-Design**. By default, all transcripts, vector 
 
 Simply install **Ollama**, run a model (e.g., `ollama run llama3`), and Natively will automatically detect it. Enable "Ollama" in the AI Providers settings to switch to offline mode.
 
-#### How does Natively compare to Cluely?
-
-Cluely is a $20/month cloud-based tool that stores all data on their servers. In mid-2025, Cluely suffered a data breach that exposed personal information, transcripts, and screenshots of 83,000 users. Natively is free for personal/non-commercial use, source-available, and stores everything locally. It supports any LLM (not just one vendor), offers local AI via Ollama, and has battle-tested stealth mode. Natively has never had a data breach because there is no server to breach.
-
-#### Is stealth mode actually undetectable?
-
-Yes. Natively hides from the dock, disguises process names as harmless system utilities (Terminal, Activity Monitor, System Settings), and syncs state across all windows. It has been hardened across five major releases and tested against screen share detection in Zoom, Teams, and Google Meet. This is best-effort, not guaranteed — on macOS 15.4+ Apple can let modern capture tools see it anyway, and a phone camera always can.
-
 #### Zoom shows my overlay in screen share — how do I fix it?
 
 Google Meet, Teams, and QuickTime hide Natively automatically — nothing to configure. Zoom is the one exception: whether it respects Natively's "don't capture me" flag depends on one setting.
@@ -725,7 +525,6 @@ Go to **Zoom → Settings → Share Screen → Advanced → Screen capture mode*
 </p>
 
 The "...with window filtering" modes tell Zoom to leave out windows that mark themselves as private, which is exactly what Natively does. **"Advanced capture without window filtering"** grabs the raw screen and will show Natively, so avoid it.
-
 
 ## Star History
 

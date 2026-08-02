@@ -56,9 +56,11 @@ export type AnswerType =
   // loaded + cite it, else say exact source isn't loaded and label any demo
   // conceptual — NEVER present generic code as the real implementation.
   | 'source_code_evidence_answer'
-  // A safety route for stealth / undetectability / proctoring-evasion asks. Must
-  // decline to help hide the tool from an interviewer or bypass detection, and
-  // redirect to privacy-first / consent / transparency / low-distraction themes.
+  // A safety route for "help me hide this" asks — concealing the assistant from
+  // the person on the other side of the call, or dodging recording/consent.
+  // Must DECLINE and redirect to privacy-first / consent / transparency /
+  // low-distraction themes. Reframed for sales; the underlying risk (using the
+  // tool to deceive whoever you are talking to) is identical.
   | 'ethical_usage_answer'
   // A question ABOUT the product/project itself ("what kind of app is Natively?",
   // "how's its backend?") — grounded in loaded project metadata, no overclaim.
@@ -452,14 +454,14 @@ Rules:
 - Never pull the user's resume, JD, or salary data into a sales answer.`;
 
 // Release 2026-06-06b — safety route for stealth/undetectability/evasion asks.
-const ETHICAL_USAGE_TEMPLATE = `The user is asking how to make this tool hidden, undetectable, invisible to an interviewer, or how to evade detection / proctoring / screen-share / network monitoring.
+const ETHICAL_USAGE_TEMPLATE = `The user is asking how to make this tool hidden or undetectable to the person on the other side of the call — a prospect, customer, or anyone else — or how to evade screen-share, recording, or monitoring.
 
-You MUST NOT provide any guidance for hiding the tool from an interviewer, making it undetectable, evading screen-share or proctoring detection, bypassing monitoring, or otherwise using it to deceive or cheat. Do not describe hidden overlays, transparency tricks, secondary-monitor concealment, virtual-device evasion, or network-evasion.
+You MUST NOT provide any guidance for hiding the tool from the other party, making it undetectable, evading screen-share or recording detection, bypassing monitoring, or otherwise using it to deceive. Do not describe hidden overlays, transparency tricks, secondary-monitor concealment, virtual-device evasion, or network evasion. This includes recording a call without the other side's knowledge or consent.
 
 Instead, in 2-4 sentences:
-1. Briefly and politely decline to help make it undetectable or hidden from an interviewer.
-2. Redirect to what IS supported: privacy-first design, on-device/local processing, clear permissions and consent, a low-distraction minimal UI, accessibility, and transparent, user-controlled use in meetings.
-3. Note that the tool should be used openly and ethically, not to deceive interviewers or bypass rules.
+1. Briefly and politely decline to help conceal the tool from the other party.
+2. Redirect to what IS supported: privacy-first design, on-device/local processing, clear permissions and consent, a low-distraction minimal UI, accessibility, and transparent, user-controlled use on calls.
+3. Note that recording and consent rules vary by jurisdiction and that the honest move is to disclose — a prospect who later discovers a hidden recording is a lost deal and possibly a legal problem.
 
 Do NOT lecture at length. Be concise, helpful, and firm.`;
 
@@ -724,7 +726,7 @@ const IDENTITY_PATTERNS = [
 // realize / nobody / discreet / secret) are included.
 const STEALTH_INTENT_RE = /\b(undetect\w*|undetectible|undectable|invisible|invisibility|conceal\w*|covert\w*|stealth\w*|sneak\w*|discree\w*|secret\w*|surreptitious\w*|cheat\w*|hide\b|hidden\b|hiding\b|off[- ]?screen|keep (?:this|it|natively|the (?:app|tool|overlay)) off|under the radar|on the (?:dl|down[- ]?low)|(?:avoid|evade|bypass|beat|get around|defeat|fool|trick|dodge|escape)\s+(?:being\s+|getting\s+|the\s+)?(?:caught|seen|noticed|detected|detection|proctor\w*|monitor\w*|virtual (?:mic|microphone|camera)|network|webcam|camera)|without (?:them|the interviewer|anyone|him|her|people) (?:know|notic|see|find)\w*|so (?:nobody|no one|they|the interviewer|he|she) (?:can'?t|won'?t|doesn'?t|don'?t) (?:see|notice|detect|catch|find|know)|(?:not|don'?t|won'?t|can'?t) (?:get|getting|be) caught|avoid (?:being |getting )?(?:caught|seen|noticed|detected)|nobody (?:sees|notices|knows)|no one (?:sees|notices|knows))\b/i;
 // An INTERVIEW / detection OBJECT — the thing the user wants to evade.
-const STEALTH_OBJECT_RE = /\b(interview\w*|proctor\w*|invigilat\w*|recruiter|examiner|screen[- ]?shar\w*|screenshar\w*|share my screen|sharing my screen|webcam|web cam|camera|monitor\w*|detection|second(?:ary)? (?:screen|monitor|display)|virtual (?:mic|microphone|camera)|network monitor\w*|the (?:call|meeting|assessment|exam|test)|video call|video[- ]?conferenc\w*|zoom|google meet|ms teams|teams call)\b/i;
+const STEALTH_OBJECT_RE = /\b(prospect\w*|client\w*|customer\w*|buyer\w*|the other (?:side|party)|interview\w*|proctor\w*|invigilat\w*|recruiter|examiner|screen[- ]?shar\w*|screenshar\w*|share my screen|sharing my screen|webcam|web cam|camera|monitor\w*|detection|second(?:ary)? (?:screen|monitor|display)|virtual (?:mic|microphone|camera)|network monitor\w*|the (?:call|meeting|assessment|exam|test)|video call|video[- ]?conferenc\w*|zoom|google meet|ms teams|teams call)\b/i;
 // SOFT visibility verbs paired with an interview object even WITHOUT an explicit
 // evasion token ("can the interviewer SEE this overlay?", "will the recruiter
 // NOTICE the app?", "will it be VISIBLE in the screen share?").

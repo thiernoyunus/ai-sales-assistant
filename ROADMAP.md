@@ -16,18 +16,18 @@ The product name stays **Natively** for now — the rename is a separate, later 
 
 ## Near-term: scope reduction
 
-**Status: Planned** · Sequencing detail in `SALES_SCOPE_PLAN.md` §2 and §6.
+**Status: in progress.** Sequencing detail in `SALES_SCOPE_PLAN.md` §2 and §6; day-to-day status in `SALES_SCOPE_HANDOFF.md`.
 
 This is the prerequisite for most of what follows. It ships a focused product with the brand untouched and zero risk to existing installs.
 
-| Phase | Content | Size |
-|---|---|---|
-| 0 | `README.md` liability cleanup (interview-cheating SEO block, competitor positioning, testimonials) + GitHub repo topics | small |
-| 1 | Clean deletions — subsystems with no sales-core importers | small |
-| 2 | Shimmed deletions — extract the credential bootstrap out of `ProcessingHelper` first, then stub and delete | small |
-| 3 | Mode collapse in `electron/services/ModesManager.ts` and its five hand-mirrored copies, **plus a DB migration** — `template_type` is a persisted row in `electron/db/DatabaseManager.ts` | medium |
-| 4 | `AnswerType` narrowing in `electron/llm/AnswerPlanner.ts` — **rewrite the sales leak guards before removing the interview vocabulary they are expressed in** | medium |
-| 5 | Docs, test cull, i18n regeneration | small |
+| Phase | Content | Size | Status |
+|---|---|---|---|
+| 0 | `README.md` liability cleanup (interview-cheating SEO block, competitor positioning, testimonials) + GitHub repo topics | small | Done |
+| 1 | Clean deletions — subsystems with no sales-core importers | small | Done |
+| 2 | Shimmed deletions — extract the credential bootstrap out of `ProcessingHelper` first, then stub and delete | small | Done |
+| 3 | Mode collapse in `electron/services/ModesManager.ts` and its five hand-mirrored copies, **plus a DB migration** — `template_type` is a persisted row in `electron/db/DatabaseManager.ts` | medium | Code complete, test suite being confirmed |
+| 4 | `AnswerType` narrowing in `electron/llm/AnswerPlanner.ts` — **delete the Profile Intelligence backend first, then narrow the enum, then remove the `resume`/`jd`/`negotiation` context layers** (see `SALES_SCOPE_HANDOFF.md` for why this order matters) | medium | Not started |
+| 5 | Docs, test cull, i18n regeneration | small | In progress — this document and `README.md` |
 
 Two things must not be lost in the pruning:
 
@@ -84,6 +84,12 @@ No talk-time, speaker-share, or monologue metrics exist today — but the raw da
 The pricing *guardrails* — walk-away price, BATNA, discount-floor suppression — are the best-covered logic in the repo, enforced independently in `electron/llm/prompts.ts` and `electron/llm/tinyPrompts.ts`. What is missing is customer-configurable *policy*: approved discount ladders, concession trades, approval thresholds.
 
 - Ships as a structured reference file through the path `tests/fixtures/modes/sales/sales_pricing_policy.json` already exercises. No new subsystem.
+
+### Sales methodology packs
+
+**Planned · small**
+
+`electron/services/skills/` is a markdown instruction-pack loader (drop a `SKILL.md` file, invoke it from the overlay chat). The engine stays live — only its settings-panel UI was removed in the Phase 1 cleanup (`SALES_SCOPE_PLAN.md` §4). It is the cheapest possible host for MEDDIC / Challenger / Sandler coaching packs without touching prompt code — nobody has written those packs yet.
 
 ---
 
@@ -163,11 +169,17 @@ The previous roadmap planned token-gated Pro access (wallet connection, on-chain
 
 This is a business decision, not a technical one, and it is not settled. It is recorded here rather than deleted so the call gets made explicitly. Nothing is being built against it in the meantime.
 
-### Sales methodology packs
+### Long-term memory (Hindsight)
 
-**Under review — see `SALES_SCOPE_PLAN.md` §4, decision 3.**
+**Under review — see `SALES_SCOPE_PLAN.md` §2.1, §4.**
 
-`electron/services/skills/` is a markdown instruction-pack loader. It is on the removal list, but it is also the cheapest possible host for MEDDIC / Challenger / Sandler coaching packs without touching prompt code. Pending decision: keep the engine, drop the settings UI.
+`electron/services/HindsightManager.ts` hosts an optional, user-provisioned long-term-memory sidecar (cross-meeting recall backed by a self-hosted Postgres + embedding server). The scope plan recommends cutting it — it is disabled by default, needs a server almost no shipped user runs, and is out of scope for a lean sales tool. That removal has not happened yet; the code is still present and off unless a user configures a server. Not marketed as a current feature.
+
+### Stealth / process disguise
+
+**Under review — see `SALES_SCOPE_PLAN.md` §4, decision 1.**
+
+The app can rename its own process and swap its icon to impersonate Terminal, System Settings, or Activity Monitor. For a sales tool where you're recording a call, that is closer to a legal liability than a feature. The recommendation is to drop the impersonation icons and keep only "invisible during screen share" (a different, legitimate code path already covered under [Why Natively?](README.md#why-natively)). Not yet implemented.
 
 ---
 
