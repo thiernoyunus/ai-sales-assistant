@@ -2,7 +2,14 @@
 
 **Goal:** rebrand this app from a multi-purpose meeting copilot (interviews, job hunting, lectures, coding help, sales) into a single-purpose **real-time AI copilot for sales calls**.
 
-**Status:** Phase 0 (docs/positioning) in progress. **No application code has been changed yet.** Based on a full-repo audit (Jul 2026).
+**Status:** Phase 0 done (docs/positioning). Phase 1 done (clean deletions). Phase 2 in progress. Based on a full-repo audit (Jul 2026).
+
+**Phase 2 progress**
+- [x] `ProcessingHelper` — the dead `processScreenshots()` interview path removed, along with the four LLMHelper methods only it used. The credential bootstrap stays put under its original name; extracting it to `CredentialBootstrap.ts` would have been a ~50-file rename for no behavior change.
+- [x] Verified code execution (`llm/codeVerification/*`) removed end to end — engine, IPC, preload, renderer badge/correction UI, and the settings toggle. −4,289 lines.
+- [ ] `HindsightManager` — already gone; no shim needed.
+- [ ] `services/screen/*` vision + OCR chain (~2,400 lines) and the screenshot-solve path (`ScreenshotHelper`, `CropperWindowHelper`, `Cropper.tsx`, ~1,800 lines).
+- [ ] `llm/codingStreamGate.ts` — still used by the coding chat path; retires with Phase 4.
 
 ---
 
@@ -172,7 +179,7 @@ These will silently break existing users if touched carelessly.
 
 ### Pre-existing rot worth fixing while we're in here
 
-- `natively-api` is an **orphaned gitlink** with no `.gitmodules` mapping — `git submodule status` errors, and `npm run test:e2e:screen-understanding` is broken in a fresh clone.
+- ~~`natively-api` is an **orphaned gitlink** with no `.gitmodules` mapping~~ — **fixed.** The pointer had no mapping and no URL recorded anywhere, so it could never be cloned. Removing it made `git submodule status` succeed again, which unblocked branch switching (tools that shell out to it were reading the error as "uncommitted changes"). `npm run test:e2e:screen-understanding` still references a `natively-api/` path that no longer exists — it retires with the vision chain in Phase 2.
 - Every `docs/*` path referenced in CHANGELOG and `electron-builder.signed.cjs:38` is dead — there is no `docs/` directory.
 - `KeychainEntitlement.test.mjs:26-29` asserts a `keychain-access-groups` key that **neither entitlements plist declares**.
 - `src/config/urls.ts:10` and `:14` (`pro` and `apiPro`) point at the *same* Dodo product ID.
