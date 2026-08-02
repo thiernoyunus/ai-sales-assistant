@@ -230,6 +230,35 @@ The plan treats Phase 4 as "narrow `AnswerType` from 38 members". **You cannot s
 
 **On the plan's trap #1 (the sales leak-guard).** `AnswerPlanner.ts:1839-1845` has `sales_answer` forbid `['resume', 'jd', 'negotiation']`, and the plan warns the guard "disappears with" that vocabulary. Resolved by ordering: once Profile Intelligence is gone there is no résumé/JD/salary context left to leak, so the guard is not weakened by losing its list — it becomes genuinely moot. **But only in that order.** Removing the layers while the profile backend still populates them deletes a live protection. Mirror deny-sets naming `sales_answer` live at `ProfileOutputValidator.ts:130,545` and `ProfileIntelligenceRouter.ts:157` — they retire together.
 
+### Profile Intelligence deletion map (surveyed — read before cutting)
+
+**Scope is bigger than the plan's ~5,200 + 2,150.** Full survey findings:
+
+**The extraction engine is not in this repo.** `main.ts:1041-1046` conditionally `require()`s `KnowledgeOrchestrator` / `KnowledgeDatabaseManager` from the private `premium/` submodule, which is not checked out here. This repo holds only the consumer/glue layer, and `main.ts` already degrades gracefully when it is absent. Same for `ProfileVisualizer` — `src/premium/index.tsx` resolves it via `import.meta.glob` with a `NullComponent` fallback, so **a stale reference after deletion will not error, it will silently resolve to a no-op**.
+
+**Clean deletion set (18 files):** the 17 listed above plus `electron/llm/manualIdentityRouting.ts`. Note `electron/llm/profileGroundingV2.ts` is **already dead today** — zero production call sites, only its own two tests.
+
+**Two independent profile vocabularies, not one.** The plan only mentions `ContextLayer`. There is a second, more granular system in `intelligence/context-os/`: `sourceKinds.ts` (`profile_resume`, `profile_jd`, `profile_persona`, `okf_profile_card`, …), `sourceOwnership.ts` (`ContextOwner` includes `'profile'`), `SourceAuthorityKernel.ts`, `turnSourceDecision.ts` (`authority === 'profile_only' | 'profile_plus_transcript'`), `explicitSourceSwitch.ts`. Both must be unwound.
+
+**`knowledge/` split confirmed accurate.** Delete 6 files (~1,411 lines: `ProfileCardTemplates`, `ProfileGraphExtractor`, `ProfileMarkdownExporter`, `ProfilePackBuilder`, `OkfProfileVerifier`, `OkfProfileRetriever`). **Keep the 15 generic engine files** — and surgically edit only `types.ts` (profile members mixed into `KnowledgeSourceType` / `KnowledgeCardType`) and `KnowledgeManager.ts` (one import + one filter). Getting this wrong destroys the substrate the plan wants repointed at accounts & deals.
+
+**`__profile_okf__` — FK is genuinely enforced.** `KnowledgeManager.ts:248` claims foreign keys are never enabled; that comment is **wrong** — `DatabaseManager.ts:351` runs `pragma('foreign_keys = ON')` at boot and two tests assert it. Cascade chain: `modes(id)` → `knowledge_sources`/`knowledge_packs` → `knowledge_cards`/`entities`/`relations`. So a single `DELETE FROM modes WHERE id = '__profile_okf__'` purges everything, no orphans. Not strictly required, but **recommended as a v27 migration** — otherwise résumé/JD PII sits in users' local databases indefinitely, which is a poor look for a privacy-positioned product.
+
+**21 IPC channels** (17 product + 4 `__e2e__`), registered via `safeHandle`/`safeOn` wrappers — **a grep for `ipcMain.handle('...')` finds nothing.** They run `ipcHandlers.ts:5746` and `8587-9107`, `10092-10313`.
+
+**The renderer chain is deeper than one settings component.** `App.tsx`, `SettingsPopup.tsx`, `Launcher.tsx` (a whole "Profile Intel" onboarding pill), `OrchestratedToasterHost.tsx`, and three `src/lib/onboarding/` files. **Critical:** `stageCatalog.ts` defines a `profile_intelligence` onboarding stage that the **next** stage (`modes_manager`) declares as a hard `requiresStages` dependency — removing the stage without fixing that chain breaks the modes onboarding gate.
+
+**Silent-break risks (the compiler will not catch these):**
+1. **Bare untyped `require()`** at `ipcHandlers.ts:1704-1705` and `WhatToAnswerLLM.ts:793`. They sit inside `try/catch` blocks written for unrelated reasons, so a `MODULE_NOT_FOUND` would be **silently swallowed**. The other 8 `require()` sites use `as typeof import(...)` and *will* fail at compile time — those are the safe ones.
+2. **Six dead flags** in `intelligenceFlags.ts`. `profileTreeV2` stays wired to a **user-visible toggle** ("Stronger candidate voice", `IntelligenceSettings.tsx:37`) that would silently do nothing.
+3. **`Set<AnswerType>` literals** (`PROFILE_ANSWER_TYPES`, `CANDIDATE_VOICE_TYPES`, `ASSISTANT_VOICE_ANSWER_TYPES`, `PROFILE_FORBIDDEN_OUTPUT_TYPES`, `KNOWN_COORDINATOR_KINDS_EARLY`) are sets, not exhaustive switches — narrowing `AnswerType` will **not** force them to be revisited.
+4. **`PROFILE_OKF_MODE_ID` and `PROFILE_OKF_RESERVED_MODE_ID`** are two separate string constants kept in sync by a *comment*, not an import.
+5. **`'profile_history'`** is a data-scope string literal (`LLMHelper.ts:406,2136,3746,4777`, `preload.ts:804,812,821`). Leaving it means a privacy toggle offering to control data the app can no longer produce.
+
+**Losing the second line of defense.** `ProfileOutputValidator.ts` scans *generated output text* for résumé/salary leakage. It is in the deletion set, so that protection does not become vacuous — it disappears. Its `PRODUCT_NATIVELY_RE` (line 140) has nothing to do with profiles; **extract anything worth keeping before deleting the file.**
+
+**Tests:** ~46 files test profile intelligence directly (retire). A larger set uses profile as a *fixture* while testing something else (rewrite assertions). **`electron/llm/__tests__/ModeProfiles.test.mjs` is misleadingly named** — it tests `modeProfiles.ts`, which is load-bearing and NOT part of this deletion. Do not retire it. The `knowledge/__tests__/OkfPhase*` files test the generic engine and stay.
+
 **Do NOT remove with the interview types** (plan trap #2): `lecture_answer`, `definitional_answer`, `list_answer`, `exact_numeric_answer`, `document_structure_answer`, `document_followup_answer`. Sales modes default to `reference_files_primary`, and these are exactly what makes "answer from the product PDF / battlecard / pricing sheet" work. `lecture_answer` wants renaming, not deleting.
 
 **Rewrite, do not drop** (trap #3): `ethical_usage_answer` is written in proctoring-evasion language but is a **safety route**. It needs sales framing — recording consent, honesty about being on a call.
