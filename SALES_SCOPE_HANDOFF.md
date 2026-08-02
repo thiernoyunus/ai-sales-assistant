@@ -217,6 +217,27 @@ services/ModesManager.ts:208 TEMPLATE_SYSTEM_PROMPTS
 - **Keep `ImageOptimizer`** — still live for image attachments.
 - **Keep `ScreenContext` (the interface).** Nothing populates it now, but four signatures thread it and `PromptAssembler` renders it when given one, so a future screen-share reader reuses the seam.
 
+---
+
+## Phase 4 — REQUIRED SEQUENCING (discovered, changes the plan's order)
+
+The plan treats Phase 4 as "narrow `AnswerType` from 38 members". **You cannot start there.** Roughly 20 of those members are the *output* of Profile Intelligence — `identity_answer`, `profile_fact_answer`, `skills_answer`, `experience_answer`, `jd_fit_answer`, the five `jd_*` / `resume_jd_*` shapes, `behavioral_interview_answer`, `gap_analysis_answer`, and friends. Profile Intelligence is **still fully present** (`ProfileIntelligenceRouter`, `ProfileOutputValidator`, `ProfileTreeService`, and the `resume` / `jd` / `negotiation` context layers are live and populated). Remove the answer types while the router still routes to them and the app breaks at runtime.
+
+**Correct order:**
+1. Delete the Profile Intelligence backend (~5,200 lines) and `ProfileIntelligenceSettings.tsx` (~2,150).
+2. Then narrow `AnswerType`.
+3. Then remove `resume` / `jd` / `negotiation` from `ContextLayer`.
+
+**On the plan's trap #1 (the sales leak-guard).** `AnswerPlanner.ts:1839-1845` has `sales_answer` forbid `['resume', 'jd', 'negotiation']`, and the plan warns the guard "disappears with" that vocabulary. Resolved by ordering: once Profile Intelligence is gone there is no résumé/JD/salary context left to leak, so the guard is not weakened by losing its list — it becomes genuinely moot. **But only in that order.** Removing the layers while the profile backend still populates them deletes a live protection. Mirror deny-sets naming `sales_answer` live at `ProfileOutputValidator.ts:130,545` and `ProfileIntelligenceRouter.ts:157` — they retire together.
+
+**Do NOT remove with the interview types** (plan trap #2): `lecture_answer`, `definitional_answer`, `list_answer`, `exact_numeric_answer`, `document_structure_answer`, `document_followup_answer`. Sales modes default to `reference_files_primary`, and these are exactly what makes "answer from the product PDF / battlecard / pricing sheet" work. `lecture_answer` wants renaming, not deleting.
+
+**Rewrite, do not drop** (trap #3): `ethical_usage_answer` is written in proctoring-evasion language but is a **safety route**. It needs sales framing — recording consent, honesty about being on a call.
+
+`product_candidate_mix_answer` (trap #4) either folds into `sales_answer` or gets re-derived without the résumé dependency.
+
+---
+
 ### Open question for the product owner
 
 **Screenshot capture was NOT deleted**, though the plan lists `ScreenshotHelper` / `CropperWindowHelper` / `Cropper.tsx` under the screenshot-solve path. The *solve* half is gone. The *capture* half is live and user-facing — keyboard shortcut, area cropper, image attachment on a question, via `take-screenshot` and the still-used screenshot queues. Deleting it removes the ability to ask about anything on screen, which is plausibly a sales use (reading a prospect's shared slide). **Needs a call before anyone deletes it.**
