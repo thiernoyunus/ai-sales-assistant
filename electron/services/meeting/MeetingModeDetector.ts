@@ -8,14 +8,12 @@
 
 import type { TranscriptSegment } from '../../SessionTracker';
 
+// Kept separate from llm/modeProfiles' ModeTemplateType on purpose: this is what
+// the detector is willing to GUESS, which is not necessarily every mode that
+// exists. Today they happen to coincide.
 export type DetectableTemplateType =
   | 'general'
-  | 'sales'
-  | 'recruiting'
-  | 'team-meet'
-  | 'looking-for-work'
-  | 'technical-interview'
-  | 'lecture';
+  | 'sales';
 
 export interface ModeDetectionInput {
   transcript: TranscriptSegment[];
@@ -42,48 +40,14 @@ const SIGNALS: Record<Exclude<DetectableTemplateType, 'general'>, Array<{ re: Re
     { re: /\b(objection|competitor|roi|use case|stakeholder)\b/i, w: 1, label: 'sales discovery' },
     { re: /\b(close|deal|renewal|upsell|expansion)\b/i, w: 1, label: 'deal' },
   ],
-  recruiting: [
-    { re: /\b(candidate|applicant|resume|cv|portfolio)\b/i, w: 2, label: 'candidate' },
-    { re: /\b(role|position|opening|req|hiring)\b/i, w: 1, label: 'role' },
-    { re: /\b(compensation|salary|notice period|start date|relocat)\b/i, w: 2, label: 'comp/logistics' },
-    { re: /\b(screen|interview stage|reference check|offer)\b/i, w: 1, label: 'interview stage' },
-    { re: /\b(years of experience|background|strengths|concerns)\b/i, w: 1, label: 'evaluation' },
-  ],
-  'technical-interview': [
-    { re: /\b(algorithm|complexity|big o|o\(n\)|time complexity)\b/i, w: 2, label: 'complexity' },
-    { re: /\b(leetcode|coding|whiteboard|implement|function|array|hash map|linked list)\b/i, w: 2, label: 'coding' },
-    { re: /\b(system design|scal(e|ability)|throughput|latency|database schema)\b/i, w: 2, label: 'system design' },
-    { re: /\b(edge case|test case|brute force|optimi[sz]e|refactor)\b/i, w: 1, label: 'problem solving' },
-  ],
-  lecture: [
-    { re: /\b(lecture|chapter|syllabus|exam|quiz|homework|assignment)\b/i, w: 2, label: 'course' },
-    { re: /\b(theorem|formula|equation|definition|proof|derivation)\b/i, w: 2, label: 'academic' },
-    { re: /\b(professor|instructor|today we'?ll cover|in this class|textbook)\b/i, w: 2, label: 'classroom' },
-    { re: /\b(memorize|study|concept|example problem)\b/i, w: 1, label: 'study' },
-  ],
-  'team-meet': [
-    { re: /\b(sprint|standup|stand-up|backlog|roadmap|retro|retrospective)\b/i, w: 2, label: 'agile' },
-    { re: /\b(blocker|blocked|dependency|ticket|jira|pull request|deploy|release)\b/i, w: 2, label: 'delivery' },
-    { re: /\b(action item|owner|next step|status update|since last sync)\b/i, w: 1, label: 'sync' },
-    { re: /\b(team|we shipped|in progress|on track|at risk)\b/i, w: 1, label: 'team status' },
-  ],
-  'looking-for-work': [
-    { re: /\b(tell me about yourself|why do you want|your experience|walk me through)\b/i, w: 2, label: 'interviewee' },
-    { re: /\b(this role|the team|the company|the position|interview process)\b/i, w: 1, label: 'opportunity' },
-    { re: /\b(my background|i worked on|i led|i built|my strengths)\b/i, w: 2, label: 'self-presentation' },
-  ],
 };
 
 const TITLE_HINTS: Array<{ re: RegExp; type: DetectableTemplateType; w: number }> = [
   { re: /\b(sales|demo|discovery|pipeline|prospect)\b/i, type: 'sales', w: 3 },
-  { re: /\b(interview|screen|candidate|recruit)\b/i, type: 'recruiting', w: 2 },
-  { re: /\b(standup|stand-up|sprint|sync|retro|planning|1:1|one on one|team)\b/i, type: 'team-meet', w: 3 },
-  { re: /\b(lecture|class|seminar|course|tutorial)\b/i, type: 'lecture', w: 3 },
-  { re: /\b(coding|technical|system design|whiteboard)\b/i, type: 'technical-interview', w: 3 },
 ];
 
 function emptyScores(): Record<DetectableTemplateType, number> {
-  return { general: 0, sales: 0, recruiting: 0, 'team-meet': 0, 'looking-for-work': 0, 'technical-interview': 0, lecture: 0 };
+  return { general: 0, sales: 0 };
 }
 
 export class MeetingModeDetector {
@@ -121,20 +85,22 @@ export class MeetingModeDetector {
     // Pick the best non-general score.
     let best: DetectableTemplateType = 'general';
     let bestScore = 0;
-    let secondScore = 0;
     for (const [type, score] of Object.entries(scores) as Array<[DetectableTemplateType, number]>) {
       if (type === 'general') continue;
-      if (score > bestScore) { secondScore = bestScore; bestScore = score; best = type; }
-      else if (score > secondScore) { secondScore = score; }
+      if (score > bestScore) { bestScore = score; best = type; }
     }
 
-    // Confidence: needs a clear winner with enough absolute signal.
-    // margin = lead over runner-up; normalize against a target of ~8 points.
+    // Confidence is absolute signal strength only, normalized against a target
+    // of ~12 points. This used to blend in a `margin` term (lead over the
+    // runner-up, 40% weight) which made sense when six modes competed. With
+    // sales the only non-general candidate there is never a runner-up, so
+    // secondScore was always 0 and margin always equalled bestScore — the
+    // formula would have counted the same number twice and inflated every
+    // score. Restore the margin term if a third mode is ever added.
     if (bestScore < 3) {
       return { templateType: 'general', confidence: 0, scores, signals: dedupe(signals) };
     }
-    const margin = bestScore - secondScore;
-    const confidence = clamp01((bestScore / 12) * 0.6 + (margin / 8) * 0.4);
+    const confidence = clamp01(bestScore / 12);
 
     return { templateType: best, confidence: round2(confidence), scores, signals: dedupe(signals) };
   }
