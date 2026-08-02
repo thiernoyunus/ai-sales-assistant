@@ -80,14 +80,13 @@ export function effectiveMemoryMode(modeId: string | undefined, answerType: Answ
   return toMemoryMode(modeId);
 }
 
-/** Map a ModesManager mode id → the follow-up clarification surface. */
+/** Map a ModesManager mode id → the follow-up clarification surface.
+ *  FollowUpSurface keeps its wider member list (it is a separate union, also
+ *  fed by non-mode callers); only the cases for retired modes go. */
 export function toSurface(modeId: string | undefined, isWhatToAnswer: boolean): FollowUpSurface {
   if (isWhatToAnswer) return 'what_to_answer';
   switch (modeId) {
     case 'sales': return 'sales';
-    case 'lecture': return 'lecture';
-    case 'team-meet': return 'meeting';
-    case 'technical-interview': case 'looking-for-work': case 'recruiting': return 'interview';
     default: return 'manual';
   }
 }

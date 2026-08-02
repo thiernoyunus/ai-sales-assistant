@@ -16,12 +16,6 @@ const { ModesManager, MODE_TEMPLATES, TEMPLATE_NOTE_SECTIONS } = modesMod;
 const EXPECTED_MODE_TYPES = [
   'general',
   'sales',
-  'recruiting',
-  'team-meet',
-  'looking-for-work',
-  'technical-interview',
-  'lecture',
-  'seminar',
 ];
 
 const BASE_TIME = '2026-05-14T00:00:00.000Z';
@@ -149,11 +143,6 @@ test('all mode prompts start with a shared prefix so duplicate-token stripping w
   const promptByMode = {
     general: promptsMod.MODE_GENERAL_PROMPT,
     sales: promptsMod.MODE_SALES_PROMPT,
-    recruiting: promptsMod.MODE_RECRUITING_PROMPT,
-    'team-meet': promptsMod.MODE_TEAM_MEET_PROMPT,
-    'looking-for-work': promptsMod.MODE_LOOKING_FOR_WORK_PROMPT,
-    'technical-interview': promptsMod.MODE_TECHNICAL_INTERVIEW_PROMPT,
-    lecture: promptsMod.MODE_LECTURE_PROMPT,
   };
 
   for (const [modeType, prompt] of Object.entries(promptByMode)) {
@@ -440,8 +429,13 @@ test('isPremiumKnowledgeInterceptAllowed gates the whole premium intercept by ac
     'with no active mode the gate must default open',
   );
 
-  const INTERCEPT_ALLOWED = new Set(['general', 'sales', 'recruiting', 'looking-for-work']);
-  const INTERCEPT_BLOCKED = new Set(['technical-interview', 'team-meet', 'lecture', 'seminar']);
+  // PREMIUM_INTERCEPT_INCOMPATIBLE_TEMPLATES is currently empty in production
+  // (ModesManager.ts) — the mode types that used to block the intercept
+  // ('technical-interview', 'team-meet', 'lecture', 'seminar') were retired,
+  // and neither surviving mode ('general', 'sales') blocks it. The set is
+  // kept (rather than deleting the gate) so a future mode can opt back in.
+  const INTERCEPT_ALLOWED = new Set(['general', 'sales']);
+  const INTERCEPT_BLOCKED = new Set([]);
 
   // Every production mode must land on one side of the gate — guards against
   // a future template silently inheriting the wrong default.
@@ -470,29 +464,21 @@ test('isPremiumKnowledgeInterceptAllowed gates the whole premium intercept by ac
   }
 });
 
-test('isPremiumKnowledgeInterceptAllowed honors templateType on user-created custom modes (issue #272)', () => {
-  // Custom modes inherit the gate from their underlying template. A user who
-  // names their mode "TechInterview2025" but picks templateType
-  // 'technical-interview' must still be protected from premium-flavored
-  // interjections.
+test('isPremiumKnowledgeInterceptAllowed honors templateType (not the display name) on user-created custom modes (issue #272)', () => {
+  // Custom modes inherit the gate from their underlying template, not their
+  // display name. A user who names their mode "MyJobHunt" but picks
+  // templateType 'sales' must still resolve through the 'sales' gate.
+  //
+  // NOTE: the previously-blocked half of this test (a custom mode named
+  // "TechInterview2025" with templateType 'technical-interview' inheriting a
+  // block) was removed — 'technical-interview' was retired along with every
+  // other PREMIUM_INTERCEPT_INCOMPATIBLE_TEMPLATES entry, so there is no
+  // longer any templateType in production that blocks the intercept. Only
+  // the allowed-inheritance property still has a surviving mode to test.
   installDb(makeDb({
     modes: [modeRow({
-      id: 'custom-tech-mode',
-      template_type: 'technical-interview',
-      name: 'TechInterview2025',
-      is_active: 1,
-    })],
-  }));
-  assert.equal(
-    ModesManager.getInstance().isPremiumKnowledgeInterceptAllowed(),
-    false,
-    'custom mode with technical-interview templateType must inherit the block',
-  );
-
-  installDb(makeDb({
-    modes: [modeRow({
-      id: 'custom-lfw-mode',
-      template_type: 'looking-for-work',
+      id: 'custom-sales-mode',
+      template_type: 'sales',
       name: 'MyJobHunt',
       is_active: 1,
     })],
@@ -500,7 +486,7 @@ test('isPremiumKnowledgeInterceptAllowed honors templateType on user-created cus
   assert.equal(
     ModesManager.getInstance().isPremiumKnowledgeInterceptAllowed(),
     true,
-    'custom mode with looking-for-work templateType must keep the intercept allowed',
+    'custom mode with sales templateType must keep the intercept allowed regardless of display name',
   );
 });
 
