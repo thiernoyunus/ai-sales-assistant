@@ -42,23 +42,15 @@ export type ModeSourceAuthority =
 
 /**
  * Built-in mode template types. Mirrors `ModeTemplateType` in
- * `electron/services/ModesManager.ts`. Kept as a SEPARATE type here so
- * `modeSourceContract.ts` has no ModesManager dependency (the contract is a
- * pure data type that must remain importable from lightweight contexts).
+ * `electron/llm/modeProfiles.ts`. Kept as a SEPARATE type here (not an
+ * import) so `modeSourceContract.ts` has no dependency on that module — it
+ * must remain importable from lightweight contexts, and modeProfiles.ts
+ * already imports `ModeSourceContract` FROM this file via `import type`, so
+ * importing it back would create a cycle. Keep the two lists in sync by hand.
  */
 export type ContractTemplateType =
   | 'general'
-  | 'looking-for-work'
-  | 'sales'
-  | 'recruiting'
-  | 'team-meet'
-  | 'lecture'
-  | 'technical-interview'
-  // Campaign-3 (fix/answer-policy-engine, 2026-07-19): the 8th built-in mode.
-  // "Seminar Mode" enforces the strictest answer policy — evidence required,
-  // off-document Qs answered general-labeled with a visible "not from your
-  // reference files" preamble (NEVER a refusal in this built-in mode).
-  | 'seminar';
+  | 'sales';
 
 export type ModeConflictPolicy =
   | 'reference_files_win'
@@ -228,11 +220,11 @@ const EVIDENCE_REQUIRED_FOR_AUTHORITY: Record<ModeSourceAuthority, boolean> = {
 /**
  * A brand-new mode with no reference files / prompt yet: safe, ambiguous-aware default.
  *
- * `templateType` is honored so the seed matches the renderer's per-mode default
- * table (general / sales / recruiting / team-meet / lecture → reference_files,
- * looking-for-work / technical-interview → profile + job_description). Without
- * template awareness the seed listed every switch and the renderer would have
- * to ignore it on every freshly-created mode.
+ * Both surviving modes (general, sales) default to reference-files-primary,
+ * so `templateType` no longer branches the seed values — it is threaded
+ * through only to populate `seededForTemplateType` below. (The interview-prep
+ * branch that used to key off `templateType` here was retired along with the
+ * looking-for-work / technical-interview modes it served.)
  *
  * The deprecated 'transcript' switch is never seeded; it's always available
  * via ProviderDataScope during STT sessions, never as a user-settable switch.
@@ -240,24 +232,14 @@ const EVIDENCE_REQUIRED_FOR_AUTHORITY: Record<ModeSourceAuthority, boolean> = {
 export function defaultSourceContractForNewMode(
   templateType?: string,
 ): ModeSourceContract {
-  const isInterviewPrep = templateType === 'looking-for-work'
-    || templateType === 'technical-interview';
-  const allowedExplicitSwitches: ModeSourceSwitch[] = isInterviewPrep
-    ? ['profile', 'job_description']
-    : ['reference_files'];
-  const defaultOwner: ModeSourceOwner = isInterviewPrep ? 'profile' : 'reference_files';
-  const sourceAuthority: ModeSourceAuthority = (isInterviewPrep
-    ? 'profile_only'
-    : 'reference_files_primary') as ModeSourceAuthority;
-  // Interview-prep modes (Looking-for-Work, Technical Interview) are
-  // profile-first: they must remember prior assistant context (the
-  // ongoing interview) and may use Hindsight (cross-meeting recall).
-  // Document-grounded modes must NOT — that's invariant #3 (Hindsight is
-  // forbidden when sourceOwner in {reference_files, transcript, mixed}).
-  const isReferenceFilesAuthority =
-    sourceAuthority === 'reference_files_only'
-    || sourceAuthority === 'reference_files_primary'
-    || sourceAuthority === 'reference_files_plus_transcript';
+  const allowedExplicitSwitches: ModeSourceSwitch[] = ['reference_files'];
+  const defaultOwner: ModeSourceOwner = 'reference_files';
+  const sourceAuthority: ModeSourceAuthority = 'reference_files_primary';
+  // Document-grounded modes must NOT remember prior-assistant facts or use
+  // Hindsight — that's invariant #3 (Hindsight is forbidden when sourceOwner
+  // in {reference_files, transcript, mixed}). Unconditional now that the
+  // profile-first interview-prep branch (which needed the opposite policy)
+  // is retired.
   return {
     version: 1,
     defaultOwner,
@@ -265,9 +247,7 @@ export function defaultSourceContractForNewMode(
     sourceAuthority,
     evidenceRequired: EVIDENCE_REQUIRED_FOR_AUTHORITY[sourceAuthority],
     conflictPolicy: CONFLICT_POLICY_FOR_AUTHORITY[sourceAuthority],
-    memoryPolicy: isReferenceFilesAuthority
-      ? { allowPriorAssistantFacts: false, allowPriorAssistantReferents: true, allowHindsight: false }
-      : { allowPriorAssistantFacts: true, allowPriorAssistantReferents: true, allowHindsight: true },
+    memoryPolicy: { allowPriorAssistantFacts: false, allowPriorAssistantReferents: true, allowHindsight: false },
     origin: 'default_new_mode',
     // Defense-in-depth self-heal: record which templateType this seed was
     // built for so getOrMigrateSourceContract can detect a stale seed after
@@ -281,16 +261,7 @@ export function defaultSourceContractForNewMode(
 
 /** Type-guard narrowing a string to a known ContractTemplateType. */
 function isContractTemplateType(s: string | undefined): s is ContractTemplateType {
-  return s === 'general'
-    || s === 'looking-for-work'
-    || s === 'sales'
-    || s === 'recruiting'
-    || s === 'team-meet'
-    || s === 'lecture'
-    || s === 'technical-interview'
-    // Campaign-3 (2026-07-19): add 'seminar' to the template-type whitelist
-    // so seededForTemplateType round-trips for the 8th mode.
-    || s === 'seminar';
+  return s === 'general' || s === 'sales';
 }
 
 /**

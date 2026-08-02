@@ -2,12 +2,10 @@ import * as crypto from 'crypto';
 
 export type PostCallModeType =
   | 'general'
-  | 'looking-for-work'
   | 'sales'
-  | 'recruiting'
-  | 'team-meet'
-  | 'lecture'
-  | 'technical-interview'
+  // Widened with `| string` (not just the two surviving literals) because
+  // callers pass whatever templateType a mode happens to have — including
+  // custom modes — and unknown strings must still fall through safely below.
   | string;
 
 export interface PostCallTranscriptSegment {
@@ -113,7 +111,9 @@ export function buildFollowUpDraft(
   actionItems: StructuredActionItem[],
   summaryData?: { overview?: string; keyPoints?: string[]; sections?: Array<{ title: string; bullets: string[] }> }
 ): string {
-  const greeting = modeTemplateType === 'sales' || modeTemplateType === 'recruiting'
+  // 'recruiting' used the same 'Hi,' greeting as 'sales' — retired along with
+  // the recruiting mode, so this now keys off 'sales' alone.
+  const greeting = modeTemplateType === 'sales'
     ? 'Hi,'
     : 'Hi team,';
   const lines = [greeting, '', 'Thanks for the conversation today.'];
@@ -161,23 +161,11 @@ export function generateCoachingInsights(
     if (!hasNextStep) {
       add('missing_next_step', 'Next step was not explicit', 'Consider ending sales calls with a concrete owner and follow-up date.', 'opportunity');
     }
-  } else if (modeTemplateType === 'recruiting') {
-    if (!/\b(compensation|salary|timeline|notice period|availability|start date)\b/i.test(text)) {
-      add('missing_logistics', 'Recruiting logistics not captured', 'Consider confirming compensation, timing, and availability before closing the screen.', 'opportunity');
-    }
-  } else if (modeTemplateType === 'looking-for-work' || modeTemplateType === 'technical-interview') {
-    if (/\b(i don'?t know|not sure|maybe|i think)\b/i.test(text)) {
-      add('uncertainty_pattern', 'Uncertainty appeared in answers', 'Review these moments and prepare a tighter explanation or fallback answer.', 'info', firstMatch(text, /[^.!?]*(?:i don'?t know|not sure|maybe|i think)[^.!?]*/i));
-    }
-  } else if (modeTemplateType === 'team-meet') {
-    if (!/\b(owner|by|deadline|due|next step|action item)\b/i.test(text)) {
-      add('missing_ownership', 'Ownership may be unclear', 'Team meetings are more useful when decisions include owners and dates.', 'opportunity');
-    }
-  } else if (modeTemplateType === 'lecture') {
-    if (/\b(homework|assignment|read|chapter|due|exam|quiz)\b/i.test(text)) {
-      add('study_follow_up', 'Study follow-up detected', 'Add the assignment or study item to follow-up work so it is not missed.', 'info', firstMatch(text, /[^.!?]*(?:homework|assignment|read|chapter|due|exam|quiz)[^.!?]*/i));
-    }
   }
+  // Retired: 'recruiting', 'looking-for-work' / 'technical-interview',
+  // 'team-meet', and 'lecture' each had a coaching-insight branch here.
+  // 'general', 'sales' (handled above), and any unknown string all fall
+  // through to the fallback below with no insights added.
 
   return insights.slice(0, 5);
 }

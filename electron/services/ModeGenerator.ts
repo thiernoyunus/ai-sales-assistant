@@ -29,24 +29,17 @@
 //   so a weak generation can never silently drop grounding.
 
 import { detectCustomModeDocumentGrounding } from './ModesManager';
+import type { ModeTemplateType } from '../llm/modeProfiles';
 
-export type ModeTemplateType =
-    | 'general'
-    | 'looking-for-work'
-    | 'sales'
-    | 'recruiting'
-    | 'team-meet'
-    | 'lecture'
-    | 'technical-interview';
+// Re-exported so existing `import { ModeTemplateType } from './ModeGenerator'`
+// call sites keep working. The canonical declaration lives in llm/modeProfiles.ts;
+// this used to be a hand-copied mirror that had already drifted (it was missing
+// 'seminar' before that mode was retired too) — import it instead of re-declaring.
+export type { ModeTemplateType };
 
 const VALID_TEMPLATE_TYPES: ReadonlySet<string> = new Set([
     'general',
-    'looking-for-work',
     'sales',
-    'recruiting',
-    'team-meet',
-    'lecture',
-    'technical-interview',
 ]);
 
 // Injection-time cap in ModesManager is 1200; target below it and hard-trim.
@@ -115,7 +108,7 @@ export function buildMetaPromptSystem(): string {
         'HARD REQUIREMENTS:',
         '1. Output ONLY a single JSON object. No markdown, no code fences, no commentary before or after.',
         '2. JSON shape: {"name": string, "templateType": string, "customContext": string}.',
-        '3. templateType MUST be exactly one of: general, looking-for-work, sales, recruiting, team-meet, lecture, technical-interview.',
+        '3. templateType MUST be exactly one of: general, sales.',
         '   Use "general" for any bespoke role that does not clearly match the others.',
         '4. name: <= 60 chars, human-readable, specific to the brief.',
         '5. customContext: 400-1000 characters. Encode the brief\'s TONE, ANSWER FORMAT, and any GROUNDING RULES.',
