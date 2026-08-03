@@ -9267,7 +9267,6 @@ export function initializeIpcHandlers(appState: AppState): void {
       },
     ) => {
       try {
-        if (!isProOrTrialActive()) return { success: false, error: 'pro_required' };
         if (!params?.brief || typeof params.brief !== 'string' || params.brief.trim().length < 8) {
           return { success: false, error: 'brief_too_short' };
         }
@@ -9326,17 +9325,6 @@ export function initializeIpcHandlers(appState: AppState): void {
       try {
         const { ModesManager } = require('./services/ModesManager');
         const mgr = ModesManager.getInstance();
-        // Gate: changing templateType to a non-general template requires pro.
-        // Also gate if the existing mode is already non-general (editing a pro mode requires pro).
-        if (!isProOrTrialActive()) {
-          if (updates.templateType && updates.templateType !== 'general') {
-            return { success: false, error: 'pro_required' };
-          }
-          const existing = mgr.getModes().find((m: any) => m.id === id);
-          if (existing && existing.templateType !== 'general') {
-            return { success: false, error: 'pro_required' };
-          }
-        }
         mgr.updateMode(id, updates);
         return { success: true };
       } catch (e: any) {
@@ -9379,14 +9367,6 @@ export function initializeIpcHandlers(appState: AppState): void {
     hasLiveTranscriptCapable?: boolean;
   }) => {
     try {
-      // Source Contract Builder is a Phase-7 pro feature: the panel renders
-      // for any non-general mode and gates on pro via the surrounding UI,
-      // but the IPC must enforce the same gate so a hand-crafted payload
-      // can't bypass. Mirror modes:set-active: general modes are free, all
-      // others require pro/trial.
-      if (input.templateType !== 'general' && !isProOrTrialActive()) {
-        return null;
-      }
       const { ModesManager } = require('./services/ModesManager');
       const mgr = ModesManager.getInstance();
       return mgr.buildUserSourceContract({
@@ -9419,16 +9399,6 @@ export function initializeIpcHandlers(appState: AppState): void {
 
   safeHandle('modes:set-active', async (_, id: string | null) => {
     try {
-      // Allow clearing (null) or setting general mode without pro; all other modes require pro
-      if (id !== null) {
-        const { ModesManager } = require('./services/ModesManager');
-        const targetMode = ModesManager.getInstance()
-          .getModes()
-          .find((m: any) => m.id === id);
-        if (targetMode && targetMode.templateType !== 'general' && !isProOrTrialActive()) {
-          return { success: false, error: 'pro_required' };
-        }
-      }
       const { ModesManager } = require('./services/ModesManager');
       // BUG-MODE-BLEEDING fix: clear mode-specific session context BEFORE switching modes
       // so Interview mode resume/JD context doesn't bleed into the new mode's responses.
@@ -9770,7 +9740,6 @@ export function initializeIpcHandlers(appState: AppState): void {
     'modes:add-note-section',
     async (_, modeId: string, title: string, description: string) => {
       try {
-        if (!isProOrTrialActive()) return { success: false, error: 'pro_required' };
         const { ModesManager } = require('./services/ModesManager');
         const section = ModesManager.getInstance().addNoteSection({ modeId, title, description });
         return { success: true, section };
@@ -9785,7 +9754,6 @@ export function initializeIpcHandlers(appState: AppState): void {
     'modes:update-note-section',
     async (_, id: string, updates: { title?: string; description?: string }) => {
       try {
-        if (!isProOrTrialActive()) return { success: false, error: 'pro_required' };
         const { ModesManager } = require('./services/ModesManager');
         ModesManager.getInstance().updateNoteSection(id, updates);
         return { success: true };
