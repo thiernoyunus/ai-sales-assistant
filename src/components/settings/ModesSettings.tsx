@@ -281,6 +281,7 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
             <div className="flex items-center justify-between px-5 py-4 border-b border-border-subtle shrink-0">
                 <h2 className="text-sm font-bold">{t('Modes')}</h2>
                 <button
+                    type="button"
                     onClick={onClose}
                     aria-label={t('Close')}
                     className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-bg-item-active transition-colors"
@@ -293,7 +294,7 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                 <div className="mx-5 mt-3 flex items-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs shrink-0">
                     <AlertCircle size={14} className="shrink-0" />
                     <span className="flex-1">{error}</span>
-                    <button onClick={() => setError(null)} className="text-red-400/70 hover:text-red-400">
+                    <button type="button" onClick={() => setError(null)} aria-label={t('Dismiss error')} className="text-red-400/70 hover:text-red-400">
                         <X size={12} />
                     </button>
                 </div>
@@ -310,8 +311,10 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                         <div className="flex-1 overflow-y-auto px-2 py-2 space-y-1">
                             {modes.map((mode) => (
                                 <button
+                                    type="button"
                                     key={mode.id}
                                     onClick={() => setSelectedId(mode.id)}
+                                    aria-label={`${t('Select mode')}: ${mode.name}`}
                                     className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
                                         mode.id === selectedId ? 'bg-bg-item-active' : 'hover:bg-bg-item-active/60'
                                     }`}
@@ -342,6 +345,7 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                                     />
                                     <select
                                         value={newType}
+                                        aria-label={t('New mode template')}
                                         onChange={(e) => setNewType(e.target.value as 'general' | 'sales')}
                                         className="w-full text-xs px-2 py-1.5 rounded-md bg-bg-input border border-border-subtle text-text-primary focus:outline-none"
                                     >
@@ -350,6 +354,7 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                                     </select>
                                     <div className="flex gap-1.5">
                                         <button
+                                            type="button"
                                             onClick={handleCreate}
                                             disabled={!newName.trim()}
                                             className="flex-1 text-xs font-medium py-1.5 rounded-md bg-accent-primary text-white disabled:opacity-40 disabled:cursor-not-allowed"
@@ -357,6 +362,7 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                                             {t('Create')}
                                         </button>
                                         <button
+                                            type="button"
                                             onClick={() => { setCreating(false); setNewName(''); }}
                                             className="px-2 text-xs text-text-tertiary hover:text-text-primary"
                                         >
@@ -366,6 +372,7 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                                 </div>
                             ) : (
                                 <button
+                                    type="button"
                                     onClick={() => setCreating(true)}
                                     className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-item-active transition-colors"
                                 >
@@ -384,6 +391,7 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                                     <Pencil size={12} className="text-text-tertiary shrink-0" />
                                     <input
                                         value={nameDraft}
+                                        aria-label={t('Mode name')}
                                         onChange={(e) => setNameDraft(e.target.value)}
                                         className="flex-1 text-sm font-semibold bg-transparent focus:outline-none border-b border-transparent focus:border-border-muted pb-0.5"
                                     />
@@ -394,6 +402,7 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                                     </span>
                                 ) : (
                                     <button
+                                        type="button"
                                         onClick={() => handleSetActive(selected.id)}
                                         className="text-[10px] font-medium px-2.5 py-1 rounded-full border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-muted transition-colors shrink-0"
                                     >
@@ -401,9 +410,11 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                                     </button>
                                 )}
                                 <button
+                                    type="button"
                                     onClick={() => handleDelete(selected.id)}
                                     className="p-1.5 rounded-lg text-text-tertiary hover:text-red-400 hover:bg-red-500/10 transition-colors shrink-0"
                                     title={t('Delete mode')}
+                                    aria-label={t('Delete mode')}
                                 >
                                     <Trash2 size={13} />
                                 </button>
@@ -442,6 +453,7 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                                 <div className="flex items-center justify-between mb-1.5">
                                     <h3 className="text-xs font-bold">{t('Reference files')}</h3>
                                     <button
+                                        type="button"
                                         onClick={handleUploadFile}
                                         disabled={uploading}
                                         className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-muted transition-colors disabled:opacity-50"
@@ -472,7 +484,9 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                                                         <span className="text-[10px] text-emerald-500 shrink-0">{t('Indexed')}</span>
                                                     )}
                                                     <button
+                                                        type="button"
                                                         onClick={() => handleDeleteFile(f.id)}
+                                                        aria-label={`${t('Remove file')}: ${f.fileName}`}
                                                         className="p-1 rounded text-text-tertiary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                                                     >
                                                         <Trash2 size={12} />
@@ -490,6 +504,7 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                                     <h3 className="text-xs font-bold">{t('Call note sections')}</h3>
                                     {!addingSection && (
                                         <button
+                                            type="button"
                                             onClick={() => setAddingSection(true)}
                                             className="flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full border border-border-subtle text-text-secondary hover:text-text-primary hover:border-border-muted transition-colors"
                                         >
@@ -517,6 +532,7 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                                         />
                                         <div className="flex gap-1.5">
                                             <button
+                                                type="button"
                                                 onClick={handleAddSection}
                                                 disabled={!sectionTitle.trim()}
                                                 className="text-xs font-medium px-3 py-1.5 rounded-md bg-accent-primary text-white disabled:opacity-40"
@@ -524,6 +540,7 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                                                 {t('Add')}
                                             </button>
                                             <button
+                                                type="button"
                                                 onClick={() => { setAddingSection(false); setSectionTitle(''); setSectionDesc(''); }}
                                                 className="text-xs text-text-tertiary hover:text-text-primary px-2"
                                             >
@@ -543,7 +560,9 @@ const ModesSettings: React.FC<ModesSettingsProps> = ({ onClose }) => {
                                                     {s.description && <div className="text-[10px] text-text-tertiary truncate">{s.description}</div>}
                                                 </div>
                                                 <button
+                                                    type="button"
                                                     onClick={() => handleDeleteSection(s.id)}
+                                                    aria-label={`${t('Remove section')}: ${s.title}`}
                                                     className="p-1 rounded text-text-tertiary hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                                                 >
                                                     <Trash2 size={12} />
