@@ -372,9 +372,23 @@ export class ModeHybridRetriever {
         const chunks = this.chunkText(content);
         if (chunks.length === 0) return;
 
-        if (!this.isEmbeddingAvailable() || !activeSpace) {
-            // No embedder: persist chunk TEXT (lexical retrieval still wins a
-            // re-chunk per query) and mark lexical_only so prewarm retries later.
+        // Gate on activeSpace ALONE, not isEmbeddingAvailable(). activeSpace just
+        // means a provider was resolved (EmbeddingProviderResolver picked one);
+        // isEmbeddingAvailable() additionally requires the local model's weights
+        // to already be loaded in memory — and nothing ever loads them except a
+        // real embed() call, which isEmbeddingAvailable() itself never makes. Gate
+        // on both here and this path deadlocks forever on a local-only install:
+        // every retry re-checks "is it loaded", finds no, bails without trying,
+        // and the model never gets the one real call that would load it.
+        //
+        // isEmbeddingAvailable() still gates the LIVE per-question retrieval path
+        // elsewhere in this file (unchanged) — stalling a live answer on a cold
+        // model load is genuinely wrong there. This is background indexing at
+        // upload/prewarm time; waiting out a one-time model load here is fine,
+        // and getEmbeddingsWithFallback() below has its own timeout/fallback if
+        // the load or the embed call itself actually fails.
+        if (!activeSpace) {
+            // Truly no provider resolved at all: nothing to embed with.
             this.persistChunks(file.id, chunks, null, null);
             this.updateIndexState(file.id, contentHash, chunks.length, 'lexical_only', null);
             return;
