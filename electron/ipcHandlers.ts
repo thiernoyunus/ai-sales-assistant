@@ -9511,6 +9511,13 @@ export function initializeIpcHandlers(appState: AppState): void {
           });
         },
       });
+      // If the local embedder was still lazy-loading at upload time, indexFile()
+      // falls straight to 'lexical_only' with no retry scheduled anywhere else —
+      // the other scheduleModeReferenceIndexRetry() call sites only fire when a
+      // cloud embedding key is saved, which never happens on the local-only path.
+      // Kick it here too so a file uploaded seconds after app launch doesn't sit
+      // keyword-only until something unrelated happens to trigger a retry.
+      appState.scheduleModeReferenceIndexRetry();
       return { success: true, file };
     } catch (error: any) {
       const ext = path.extname(String(error?.path || '')).toLowerCase();
